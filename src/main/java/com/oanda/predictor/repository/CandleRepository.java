@@ -3,6 +3,7 @@ package com.oanda.predictor.repository;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.oanda.predictor.domain.Candle;
+import com.oanda.predictor.util.StockDataSetIterator;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
@@ -63,7 +64,7 @@ public class CandleRepository {
     public List<Candle> getLastCandles(String symbol, int step, int size) {
         List<Candle> current = getCandles(getKey(symbol, step));
 
-        if (current.isEmpty()) {
+        if (current.isEmpty() || current.size() < StockDataSetIterator.VECTOR_SIZE) {
             return current;
         }
 
