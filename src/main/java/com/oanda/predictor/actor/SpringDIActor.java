@@ -5,9 +5,6 @@ import akka.actor.IndirectActorProducer;
 import com.oanda.predictor.provider.ApplicationContextProvider;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Spring DI для Акторов
- */
 @Slf4j
 public class SpringDIActor implements IndirectActorProducer {
 
@@ -22,17 +19,11 @@ public class SpringDIActor implements IndirectActorProducer {
         this.step = step;
     }
 
-    /**
-     * Определяем тип созданного актора из [[Props]]
-     */
     @Override
     public Class<? extends Actor> actorClass() {
         return type;
     }
 
-    /**
-     * Фабричный метод для создания свежих акторов
-     */
     @Override
     public Actor produce() {
         Actor newActor = actorInstance;

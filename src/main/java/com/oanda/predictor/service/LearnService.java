@@ -41,7 +41,9 @@ public class LearnService {
             actors.put(candle.getKey(), actor);
         }
 
-        actor.tell(Messages.LEARN, actorSystem.guardian());
+        if (candle.getAsk() > 0 && candle.getBid() > 0) {
+            actor.tell(Messages.LEARN, actorSystem.guardian());
+        }
     }
 
     public String getPredict(String symbol, int step) {
