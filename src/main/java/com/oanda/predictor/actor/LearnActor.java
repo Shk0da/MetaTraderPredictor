@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +83,8 @@ public class LearnActor extends UntypedAbstractActor {
             this.locationToSave = "NeuralNetwork" + instrument + step;
             log.info("Load model...");
             try {
-                if (Files.exists(Paths.get(new URI(locationToSave)))) {
+                Path path = Paths.get(new URI(locationToSave));
+                if (path != null && Files.exists(path)) {
                     neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(locationToSave);
                 }
             } catch (URISyntaxException | IOException ex) {
