@@ -18,9 +18,9 @@ import org.nd4j.linalg.factory.Nd4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -129,34 +129,38 @@ public class LearnActor extends UntypedAbstractActor {
 
         if (Messages.LEARN.equals(message)) {
             if (!status.equals(Status.TRAINED)) {
-                if (lastLearn != null
-                        && (DateTime.now().getMillis() - lastLearn.getMillis()) < TimeUnit.MINUTES.toMillis(learnInterval)) {
-                    return;
-                }
-
-                List<Candle> candles = candleRepository.getLastCandles(instrument, step, candleRepository.getLimit());
-                setStatus(Status.TRAINED);
-                StockDataSetIterator iterator = new StockDataSetIterator(candles, 256, 1);
-                closeMin = iterator.getCloseMin();
-                closeMax = iterator.getCloseMax();
-                if (neuralNetwork == null) {
-                    neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
-                } else {
-                    neuralNetwork.evaluate(iterator);
-                }
-
-                if (storeDisk) {
-                    try {
-                        log.info("Saving model...");
-                        ModelSerializer.writeModel(neuralNetwork, locationToSave, true);
-                    } catch (IOException ex) {
-                        log.error(ex.getMessage());
-                    }
-                }
-
-                lastLearn = DateTime.now();
-                setStatus(Status.READY);
+                trainNetwork();
             }
         }
+    }
+
+    @Async
+    private void trainNetwork() {
+        if (lastLearn != null && (DateTime.now().getMillis() - lastLearn.getMillis()) < TimeUnit.MINUTES.toMillis(learnInterval)) {
+            return;
+        }
+
+        List<Candle> candles = candleRepository.getLastCandles(instrument, step, candleRepository.getLimit());
+        setStatus(Status.TRAINED);
+        StockDataSetIterator iterator = new StockDataSetIterator(candles, 256, 1);
+        closeMin = iterator.getCloseMin();
+        closeMax = iterator.getCloseMax();
+        if (neuralNetwork == null) {
+            neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+        } else {
+            neuralNetwork.evaluate(iterator);
+        }
+
+        if (storeDisk) {
+            try {
+                log.info("Saving model...");
+                ModelSerializer.writeModel(neuralNetwork, locationToSave, true);
+            } catch (IOException ex) {
+                log.error(ex.getMessage());
+            }
+        }
+
+        lastLearn = DateTime.now();
+        setStatus(Status.READY);
     }
 }
