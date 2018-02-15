@@ -75,12 +75,12 @@ public class LearnActor extends UntypedAbstractActor {
     public LearnActor(String instrument, Integer step) {
         this.instrument = instrument;
         this.step = step;
+        this.locationToSave = "NeuralNetwork" + instrument + step;
     }
 
     @Override
     public void onReceive(Object message) {
         if (Messages.WORK.equals(message) && storeDisk && neuralNetwork == null) {
-            this.locationToSave = "NeuralNetwork" + instrument + step;
             log.info("Load model...");
             try {
                 Path path = Paths.get(new URI(locationToSave));
