@@ -2,6 +2,7 @@ package com.oanda.predictor.actor;
 
 import akka.actor.UntypedAbstractActor;
 import com.oanda.predictor.domain.Candle;
+import com.oanda.predictor.provider.ApplicationContextProvider;
 import com.oanda.predictor.repository.CandleRepository;
 import com.oanda.predictor.repository.PredictionRepository;
 import com.oanda.predictor.util.LSTMNetwork;
@@ -18,15 +19,12 @@ import org.nd4j.linalg.factory.Nd4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -83,11 +81,10 @@ public class LearnActor extends UntypedAbstractActor {
         if (Messages.WORK.equals(message) && storeDisk && neuralNetwork == null) {
             log.info("Load model...");
             try {
-                Path path = Paths.get(new URI(locationToSave));
-                if (path != null && Files.exists(path)) {
+                if (locationToSave != null && (new File(locationToSave).exists())) {
                     neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(locationToSave);
                 }
-            } catch (URISyntaxException | IOException ex) {
+            } catch (IOException ex) {
                 log.error(ex.getMessage());
             }
         }
@@ -132,12 +129,13 @@ public class LearnActor extends UntypedAbstractActor {
 
         if (Messages.LEARN.equals(message)) {
             if (!status.equals(Status.TRAINED)) {
-                trainNetwork();
+                ApplicationContextProvider.getApplicationContext()
+                        .getBean(TaskScheduler.class)
+                        .schedule(this::trainNetwork, new Date());
             }
         }
     }
 
-    @Async
     private void trainNetwork() {
         if (lastLearn != null && (DateTime.now().getMillis() - lastLearn.getMillis()) < TimeUnit.MINUTES.toMillis(learnInterval)) {
             return;
