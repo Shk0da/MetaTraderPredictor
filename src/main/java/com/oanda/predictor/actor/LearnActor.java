@@ -11,6 +11,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.util.Precision;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.util.ModelSerializer;
 import org.joda.time.DateTime;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
@@ -19,6 +20,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -59,9 +66,25 @@ public class LearnActor extends UntypedAbstractActor {
     @Value("${predictor.learn.interval}")
     private Integer learnInterval;
 
+    @Value("${neuralnetwork.store.disk}")
+    private Boolean storeDisk;
+    private String locationToSave;
+
     public LearnActor(String instrument, Integer step) {
         this.instrument = instrument;
         this.step = step;
+
+        if (storeDisk) {
+            this.locationToSave = "NeuralNetwork" + instrument + step;
+            log.info("Load model...");
+            try {
+                if (Files.exists(Paths.get(new URI(locationToSave)))) {
+                    neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(locationToSave);
+                }
+            } catch (URISyntaxException | IOException ex) {
+                log.error(ex.getMessage());
+            }
+        }
     }
 
     @Override
@@ -121,6 +144,16 @@ public class LearnActor extends UntypedAbstractActor {
                 } else {
                     neuralNetwork.evaluate(iterator);
                 }
+
+                if (storeDisk) {
+                    try {
+                        log.info("Saving model...");
+                        ModelSerializer.writeModel(neuralNetwork, locationToSave, true);
+                    } catch (IOException ex) {
+                        log.error(ex.getMessage());
+                    }
+                }
+
                 lastLearn = DateTime.now();
                 setStatus(Status.READY);
             }
