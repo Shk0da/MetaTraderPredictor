@@ -4,8 +4,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.oanda.predictor.domain.Candle;
 import com.oanda.predictor.util.StockDataSetIterator;
+import lombok.Getter;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
@@ -17,6 +19,10 @@ import java.util.stream.Collectors;
 @Slf4j
 @Repository
 public class CandleRepository {
+
+    @Getter
+    @Value("${candle.repository.limit}")
+    private Integer limit;
 
     private final Map<String, TreeMap<Timestamp, Candle>> candles = Maps.newHashMap();
 
@@ -66,6 +72,11 @@ public class CandleRepository {
 
         if (current.isEmpty() || current.size() < StockDataSetIterator.VECTOR_SIZE) {
             return current;
+        }
+
+        if (current.size() > limit) {
+            List<Candle> trimmedList = current.subList(current.size() - limit / 2, current.size());
+            this.candles.put(getKey(symbol, step), getMapFromList(trimmedList));
         }
 
         if (size > current.size()) {

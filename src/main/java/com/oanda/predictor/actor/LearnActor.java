@@ -111,12 +111,16 @@ public class LearnActor extends UntypedAbstractActor {
                     return;
                 }
 
+                List<Candle> candles = candleRepository.getLastCandles(instrument, step, candleRepository.getLimit());
                 setStatus(Status.TRAINED);
-                List<Candle> candles = candleRepository.getLastCandles(instrument, step, 10_000);
                 StockDataSetIterator iterator = new StockDataSetIterator(candles, 256, 1);
                 closeMin = iterator.getCloseMin();
                 closeMax = iterator.getCloseMax();
-                neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+                if (neuralNetwork == null) {
+                    neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+                } else {
+                    neuralNetwork.evaluate(iterator);
+                }
                 lastLearn = DateTime.now();
                 setStatus(Status.READY);
             }

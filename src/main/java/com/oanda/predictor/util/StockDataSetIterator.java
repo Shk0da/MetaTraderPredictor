@@ -1,6 +1,5 @@
 package com.oanda.predictor.util;
 
-import com.google.common.collect.Lists;
 import com.oanda.predictor.domain.Candle;
 import lombok.Getter;
 import org.nd4j.linalg.api.ndarray.INDArray;
@@ -8,7 +7,6 @@ import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.DataSetPreProcessor;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.factory.Nd4j;
-import org.nd4j.linalg.primitives.Pair;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -43,6 +41,7 @@ public class StockDataSetIterator implements DataSetIterator {
     private double volumeMax = Double.MIN_VALUE;
 
     private LinkedList<Integer> exampleStartOffsets = new LinkedList<>();
+    private DataSetPreProcessor dataSetPreProcessor;
 
     @Getter
     private List<Candle> train;
@@ -156,17 +155,17 @@ public class StockDataSetIterator implements DataSetIterator {
 
     @Override
     public void setPreProcessor(DataSetPreProcessor dataSetPreProcessor) {
-        throw new UnsupportedOperationException("Not Implemented");
+        this.dataSetPreProcessor = dataSetPreProcessor;
     }
 
     @Override
     public DataSetPreProcessor getPreProcessor() {
-        throw new UnsupportedOperationException("Not Implemented");
+        return dataSetPreProcessor;
     }
 
     @Override
     public List<String> getLabels() {
-        throw new UnsupportedOperationException("Not Implemented");
+        return null;
     }
 
     @Override
