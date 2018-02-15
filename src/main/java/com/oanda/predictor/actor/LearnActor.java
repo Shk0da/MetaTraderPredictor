@@ -146,11 +146,7 @@ public class LearnActor extends UntypedAbstractActor {
         StockDataSetIterator iterator = new StockDataSetIterator(candles, 256, 1);
         closeMin = iterator.getCloseMin();
         closeMax = iterator.getCloseMax();
-        if (neuralNetwork == null) {
-            neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
-        } else {
-            neuralNetwork.evaluate(iterator);
-        }
+        neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
 
         if (storeDisk) {
             try {
