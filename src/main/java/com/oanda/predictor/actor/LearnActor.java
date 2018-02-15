@@ -68,13 +68,17 @@ public class LearnActor extends UntypedAbstractActor {
 
     @Value("${neuralnetwork.store.disk}")
     private Boolean storeDisk;
+
     private String locationToSave;
 
     public LearnActor(String instrument, Integer step) {
         this.instrument = instrument;
         this.step = step;
+    }
 
-        if (storeDisk) {
+    @Override
+    public void onReceive(Object message) {
+        if (Messages.WORK.equals(message) && storeDisk && neuralNetwork == null) {
             this.locationToSave = "NeuralNetwork" + instrument + step;
             log.info("Load model...");
             try {
@@ -85,10 +89,7 @@ public class LearnActor extends UntypedAbstractActor {
                 log.error(ex.getMessage());
             }
         }
-    }
 
-    @Override
-    public void onReceive(Object message) {
         if (Messages.WORK.equals(message) && neuralNetwork != null) {
             Signal signal = Signal.NONE;
             List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE);
