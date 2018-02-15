@@ -83,7 +83,12 @@ public class CandleRepository {
             size = current.size() - 1;
         }
 
-        return current.subList(current.size() - size - 1, current.size());
+        int fromIndex = current.size() - size - 1;
+        if (fromIndex < 0) {
+            return current;
+        }
+
+        return current.subList(fromIndex, current.size());
     }
 
     public Integer getSize(String symbol, int step) {
