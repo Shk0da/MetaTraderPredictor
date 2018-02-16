@@ -74,8 +74,8 @@ public class CandleRepository {
             return current;
         }
 
-        if (current.size() > limit) {
-            List<Candle> trimmedList = current.subList(current.size() - limit / 2, current.size());
+        if (current.size() > limit * 1.2) {
+            List<Candle> trimmedList = current.subList(current.size() - limit, current.size());
             this.candles.put(getKey(symbol, step), getMapFromList(trimmedList));
         }
 

@@ -33,6 +33,8 @@ public class LearnService {
     @Async
     @Synchronized
     public void addCandle(Candle candle) {
+        if (candle.getClose() == 0) return;
+
         candleRepository.addCandle(candle);
 
         ActorRef actor = actors.getOrDefault(candle.getKey(), null);
@@ -49,7 +51,7 @@ public class LearnService {
     public String getPredict(String symbol, int step) {
         ActorRef actor = actors.getOrDefault(symbol + step, null);
         if (actor != null) {
-            actor.tell(Messages.WORK, actorSystem.guardian());
+            actor.tell(Messages.PREDICT, actorSystem.guardian());
         }
 
         return predictionRepository.getPredict(symbol);

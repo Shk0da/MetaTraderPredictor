@@ -9,6 +9,7 @@ import com.oanda.predictor.util.LSTMNetwork;
 import com.oanda.predictor.util.StockDataSetIterator;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.util.Precision;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
@@ -70,6 +71,8 @@ public class LearnActor extends UntypedAbstractActor {
 
     private String locationToSave;
 
+    private TaskScheduler taskScheduler = ApplicationContextProvider.getApplicationContext().getBean(TaskScheduler.class);
+
     public LearnActor(String instrument, Integer step) {
         this.instrument = instrument;
         this.step = step;
@@ -78,62 +81,55 @@ public class LearnActor extends UntypedAbstractActor {
 
     @Override
     public void onReceive(Object message) {
-        if (Messages.WORK.equals(message) && storeDisk && neuralNetwork == null) {
-            log.info("Load model...");
-            try {
-                if (locationToSave != null && (new File(locationToSave).exists())) {
-                    neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(locationToSave);
-                }
-            } catch (IOException ex) {
-                log.error(ex.getMessage());
-            }
-        }
-
-        if (Messages.WORK.equals(message) && neuralNetwork != null) {
-            Signal signal = Signal.NONE;
-            List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE);
-
-            // check vector
-            if (last.size() < VECTOR_SIZE) return;
-
-            // check new data
-            double vectorClose = last.get(4).getClose();
-            if (lastCandleClose > 0 && lastCandleClose == vectorClose) return;
-            lastCandleClose = vectorClose;
-
-            INDArray input = Nd4j.create(new int[]{1, VECTOR_SIZE}, 'f');
-            input.putScalar(new int[]{0, 0}, normalize(last.get(0).getClose(), closeMin, closeMax));
-            input.putScalar(new int[]{0, 1}, normalize(last.get(1).getClose(), closeMin, closeMax));
-            input.putScalar(new int[]{0, 2}, normalize(last.get(2).getClose(), closeMin, closeMax));
-            input.putScalar(new int[]{0, 3}, normalize(last.get(3).getClose(), closeMin, closeMax));
-            input.putScalar(new int[]{0, 4}, normalize(last.get(4).getClose(), closeMin, closeMax));
-
-            INDArray output = neuralNetwork.rnnTimeStep(input);
-            double closePrice = Precision.round(deNormalize(output.getDouble(0), closeMin, closeMax), 5);
-            if (closePrice != Double.NaN && closePrice > 0 && closePrice != lastPredict) {
-                if (lastPredict > 0) {
-                    if (closePrice > lastPredict && (closePrice / (lastPredict / 100) - 100) > sensitivityTrend) {
-                        signal = Signal.UP;
-                    }
-
-                    if (closePrice < lastPredict && (lastPredict / (closePrice / 100) - 100) > sensitivityTrend) {
-                        signal = Signal.DOWN;
-                    }
-                }
-
-                lastPredict = closePrice;
-            }
-
-            predictionRepository.addPredict(instrument, signal);
-        }
-
         if (Messages.LEARN.equals(message)) {
             if (!status.equals(Status.TRAINED)) {
-                ApplicationContextProvider.getApplicationContext()
-                        .getBean(TaskScheduler.class)
-                        .schedule(this::trainNetwork, new Date());
+                taskScheduler.schedule(this::trainNetwork, new Date());
             }
         }
+
+        if (Messages.PREDICT.equals(message)) {
+            if (getNeuralNetwork() != null) {
+                taskScheduler.schedule(this::predict, new Date());
+            }
+        }
+    }
+
+    private void predict() {
+        Signal signal = Signal.NONE;
+        List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE);
+
+        // check vector
+        if (last.size() < VECTOR_SIZE) return;
+
+        // check new data
+        double vectorClose = last.get(4).getClose();
+        if (lastCandleClose > 0 && lastCandleClose == vectorClose) return;
+        lastCandleClose = vectorClose;
+
+        INDArray input = Nd4j.create(new int[]{1, VECTOR_SIZE}, 'f');
+        input.putScalar(new int[]{0, 0}, normalize(last.get(0).getClose(), closeMin, closeMax));
+        input.putScalar(new int[]{0, 1}, normalize(last.get(1).getClose(), closeMin, closeMax));
+        input.putScalar(new int[]{0, 2}, normalize(last.get(2).getClose(), closeMin, closeMax));
+        input.putScalar(new int[]{0, 3}, normalize(last.get(3).getClose(), closeMin, closeMax));
+        input.putScalar(new int[]{0, 4}, normalize(last.get(4).getClose(), closeMin, closeMax));
+
+        INDArray output = neuralNetwork.rnnTimeStep(input);
+        double closePrice = Precision.round(deNormalize(output.getDouble(0), closeMin, closeMax), 5);
+        if (closePrice != Double.NaN && closePrice > 0 && closePrice != lastPredict) {
+            if (lastPredict > 0) {
+                if (closePrice > lastPredict && (closePrice / (lastPredict / 100) - 100) > sensitivityTrend) {
+                    signal = Signal.UP;
+                }
+
+                if (closePrice < lastPredict && (lastPredict / (closePrice / 100) - 100) > sensitivityTrend) {
+                    signal = Signal.DOWN;
+                }
+            }
+
+            lastPredict = closePrice;
+        }
+
+        predictionRepository.addPredict(instrument, signal);
     }
 
     private void trainNetwork() {
@@ -146,7 +142,11 @@ public class LearnActor extends UntypedAbstractActor {
         StockDataSetIterator iterator = new StockDataSetIterator(candles, 256, 1);
         closeMin = iterator.getCloseMin();
         closeMax = iterator.getCloseMax();
-        neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+        if (getNeuralNetwork() == null) {
+            neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+        } else {
+            neuralNetwork.evaluate(iterator);
+        }
 
         if (storeDisk) {
             try {
@@ -159,5 +159,21 @@ public class LearnActor extends UntypedAbstractActor {
 
         lastLearn = DateTime.now();
         setStatus(Status.READY);
+    }
+
+    @Synchronized
+    private MultiLayerNetwork getNeuralNetwork() {
+        if (storeDisk && neuralNetwork == null) {
+            try {
+                if (locationToSave != null && (new File(locationToSave).exists())) {
+                    neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(locationToSave);
+                    log.info("Load model...");
+                }
+            } catch (IOException ex) {
+                log.error(ex.getMessage());
+            }
+        }
+
+        return neuralNetwork;
     }
 }
