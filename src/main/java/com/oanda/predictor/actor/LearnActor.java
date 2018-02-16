@@ -126,6 +126,7 @@ public class LearnActor extends UntypedAbstractActor {
             output = neuralNetwork.rnnTimeStep(input);
         } catch (Exception ex) {
             log.error(ex.getMessage());
+            predictionRepository.addPredict(instrument, signal);
             return;
         }
 
