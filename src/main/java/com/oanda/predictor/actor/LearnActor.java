@@ -156,8 +156,8 @@ public class LearnActor extends UntypedAbstractActor {
 
         if (storeDisk) {
             try {
-                log.info("Saving model...");
                 ModelSerializer.writeModel(neuralNetwork, locationToSave, true);
+                log.info("The model is saved to disk: {}", locationToSave);
             } catch (IOException ex) {
                 log.error(ex.getMessage());
             }
@@ -173,7 +173,7 @@ public class LearnActor extends UntypedAbstractActor {
             try {
                 if (locationToSave != null && (new File(locationToSave).exists())) {
                     neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(locationToSave);
-                    log.info("Load model...");
+                    log.info("The model is loaded from the disk: {}", locationToSave);
                 }
             } catch (IOException ex) {
                 log.error(ex.getMessage());
