@@ -100,6 +100,8 @@ public class CandleRepository {
     }
 
     private TreeMap<Timestamp, Candle> getMapFromList(List<Candle> current) {
-        return current.stream().collect(Collectors.toMap(Candle::getTime, item -> item, (a, b) -> b, TreeMap::new));
+        return current.stream()
+                .filter(candle -> candle.getClose() > 0)
+                .collect(Collectors.toMap(Candle::getTime, item -> item, (a, b) -> b, TreeMap::new));
     }
 }

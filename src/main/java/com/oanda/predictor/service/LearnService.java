@@ -33,8 +33,6 @@ public class LearnService {
     @Async
     @Synchronized
     public void addCandle(Candle candle) {
-        if (candle.getClose() == 0) return;
-
         candleRepository.addCandle(candle);
 
         ActorRef actor = actors.getOrDefault(candle.getKey(), null);

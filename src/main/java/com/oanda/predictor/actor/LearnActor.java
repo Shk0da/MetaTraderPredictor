@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.oanda.predictor.repository.PredictionRepository.Signal;
 import static com.oanda.predictor.util.StockDataSetIterator.*;
@@ -96,7 +97,10 @@ public class LearnActor extends UntypedAbstractActor {
 
     private void predict() {
         Signal signal = Signal.NONE;
-        List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE);
+        List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE)
+                .stream()
+                .filter(candle -> candle.getClose() > 0)
+                .collect(Collectors.toList());
 
         // check vector
         if (last.size() < VECTOR_SIZE) return;
@@ -117,11 +121,13 @@ public class LearnActor extends UntypedAbstractActor {
         double closePrice = Precision.round(deNormalize(output.getDouble(0), closeMin, closeMax), 5);
         if (closePrice != Double.NaN && closePrice > 0 && closePrice != lastPredict) {
             if (lastPredict > 0) {
-                if (closePrice > lastPredict && (closePrice / (lastPredict / 100) - 100) > sensitivityTrend) {
+                double spread = last.get(0).getBid() - last.get(0).getAsk();
+                boolean diffMoreSpread = Math.abs(closePrice - lastPredict) > spread;
+                if (closePrice > lastPredict && diffMoreSpread && (closePrice / (lastPredict / 100) - 100) > sensitivityTrend) {
                     signal = Signal.UP;
                 }
 
-                if (closePrice < lastPredict && (lastPredict / (closePrice / 100) - 100) > sensitivityTrend) {
+                if (closePrice < lastPredict && diffMoreSpread && (lastPredict / (closePrice / 100) - 100) > sensitivityTrend) {
                     signal = Signal.DOWN;
                 }
             }
@@ -145,7 +151,7 @@ public class LearnActor extends UntypedAbstractActor {
         if (getNeuralNetwork() == null) {
             neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
         } else {
-            neuralNetwork.evaluate(iterator);
+            neuralNetwork.evaluateRegression(iterator);
         }
 
         if (storeDisk) {
