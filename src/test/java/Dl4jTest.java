@@ -34,7 +34,7 @@ public class Dl4jTest {
         testData.forEach(indArrayDoublePair -> {
             INDArray output = net.rnnTimeStep(indArrayDoublePair.getKey());
             predicts.add(StockDataSetIterator.deNormalize(
-                    output.getDouble(StockDataSetIterator.LENGTH - 1), iterator.getCloseMin(), iterator.getCloseMax()
+                    output.getDouble(0), iterator.getCloseMin(), iterator.getCloseMax()
             ));
             actuals.add(indArrayDoublePair.getValue());
         });
@@ -105,6 +105,6 @@ public class Dl4jTest {
             System.out.println(e.getMessage());
         }
 
-        return data.subList(0, 5000);
+        return data.subList(0, 1000);
     }
 }

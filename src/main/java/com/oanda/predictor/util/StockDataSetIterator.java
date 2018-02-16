@@ -96,13 +96,11 @@ public class StockDataSetIterator implements DataSetIterator {
             for (int i = startIdx; i < endIdx; i++) {
                 int c = i - startIdx;
                 //input
-                input.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx - 4).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{index, 1, c}, normalize(train.get(startIdx - 3).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{index, 2, c}, normalize(train.get(startIdx - 2).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{index, 3, c}, normalize(train.get(startIdx - 1).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{index, 4, c}, normalize(train.get(startIdx).getClose(), closeMin, closeMax));
+                for (int j = VECTOR_SIZE, k = 0; j > 0; j--, k++) {
+                    input.putScalar(new int[]{index, k, c}, normalize(train.get(startIdx - j).getClose(), closeMin, closeMax));
+                }
                 // label
-                label.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx + 1).getClose(), closeMin, closeMax));
+                label.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx).getClose(), closeMin, closeMax));
             }
             if (exampleStartOffsets.size() == 0) break;
         }
@@ -181,28 +179,22 @@ public class StockDataSetIterator implements DataSetIterator {
     }
 
     private List<Pair<INDArray, Double>> generateTestDataSet(List<Candle> stockDataList) {
-        int window = LENGTH + 1;
         List<Pair<INDArray, Double>> test = new ArrayList<>();
-        for (int i = VECTOR_SIZE; i < stockDataList.size() - window; i++) {
-            INDArray input = Nd4j.create(new int[]{LENGTH, VECTOR_SIZE}, 'f');
-            for (int j = i; j < i + LENGTH; j++) {
-                input.putScalar(new int[]{j - i, 0}, normalize(stockDataList.get(j - 4).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - i, 1}, normalize(stockDataList.get(j - 3).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - i, 2}, normalize(stockDataList.get(j - 2).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - i, 3}, normalize(stockDataList.get(j - 1).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - i, 4}, normalize(stockDataList.get(j).getClose(), closeMin, closeMax));
+        for (int i = VECTOR_SIZE; i < stockDataList.size() - 1; i++) {
+            INDArray input = Nd4j.create(new int[]{1, VECTOR_SIZE}, 'f');
+            for (int j = VECTOR_SIZE, k = 0; j > 0; j--, k++) {
+                input.putScalar(new int[]{0, k}, normalize(stockDataList.get(i - j).getClose(), closeMin, closeMax));
             }
-
-            test.add(new Pair<>(input, stockDataList.get(i + LENGTH).getClose()));
+            test.add(new Pair<>(input, stockDataList.get(i).getClose()));
         }
         return test;
     }
 
     public static double normalize(double input, double min, double max) {
-        return (input - min) / (max - min);  // Alternative: (input - min) / (max - min) * 0.8 + 0.0001;
+        return (input - min) / (max - min) * 0.8 + 0.0001;
     }
 
     public static double deNormalize(double input, double min, double max) {
-        return input * (max - min) + min; // Alternative: min + (input - 0.0001) * (max - min) / 0.8;
+        return min + (input - 0.0001) * (max - min) / 0.8;
     }
 }

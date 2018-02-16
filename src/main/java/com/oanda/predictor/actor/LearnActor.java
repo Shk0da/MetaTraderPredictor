@@ -101,12 +101,10 @@ public class LearnActor extends UntypedAbstractActor {
 
     private void predict() {
         Signal signal = Signal.NONE;
-
-        int dataSize = LENGTH + VECTOR_SIZE;
-        List<Candle> last = candleRepository.getLastCandles(instrument, step, dataSize);
+        List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE);
 
         // check vector
-        if (last.size() < dataSize) return;
+        if (last.size() < VECTOR_SIZE) return;
 
         // check new data
         double vectorClose = last.get(last.size() - 1).getClose();
@@ -115,13 +113,9 @@ public class LearnActor extends UntypedAbstractActor {
 
         INDArray output;
         try {
-            INDArray input = Nd4j.create(new int[]{LENGTH, VECTOR_SIZE}, 'f');
-            for (int j = VECTOR_SIZE; j < dataSize; j++) {
-                input.putScalar(new int[]{j - VECTOR_SIZE, 0}, normalize(last.get(j - 4).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - VECTOR_SIZE, 1}, normalize(last.get(j - 3).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - VECTOR_SIZE, 2}, normalize(last.get(j - 2).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - VECTOR_SIZE, 3}, normalize(last.get(j - 1).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - VECTOR_SIZE, 4}, normalize(last.get(j).getClose(), closeMin, closeMax));
+            INDArray input = Nd4j.create(new int[]{1, VECTOR_SIZE}, 'f');
+            for (int j = VECTOR_SIZE, k = 0; j > 0; j--, k++) {
+                input.putScalar(new int[]{0, k}, normalize(last.get(k).getClose(), closeMin, closeMax));
             }
             output = neuralNetwork.rnnTimeStep(input);
         } catch (Exception ex) {
