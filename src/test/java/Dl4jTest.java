@@ -24,26 +24,20 @@ import java.util.List;
 public class Dl4jTest {
 
     public static void main(String[] args) {
-
-        int batchSize = 256; // mini-batch size
-        double splitRatio = 0.5;
-
-        StockDataSetIterator iterator = new StockDataSetIterator(getData(), batchSize, splitRatio);
+        StockDataSetIterator iterator = new StockDataSetIterator(getData(), 0.7);
         MultiLayerNetwork net = LSTMNetwork.buildLstmNetworks(iterator);
 
-        List<Pair<INDArray, INDArray>> testDataSet = iterator.getTest();
-        int steps = testDataSet.size() - 1;
+        List<Pair<INDArray, Double>> testData = iterator.getTest();
         List<Double> predicts = Lists.newArrayList();
-
-        for (int i = 0; i < steps; i++) {
-            INDArray input = testDataSet.get(i).getKey();
-            INDArray output = net.rnnTimeStep(input);
-            double predict = StockDataSetIterator.deNormalize(output.getDouble(0), iterator.getCloseMin(), iterator.getCloseMax());
-            predicts.add(predict);
-        }
-
         List<Double> actuals = Lists.newArrayList();
-        getData().forEach(candle -> actuals.add(candle.getClose()));
+
+        testData.forEach(indArrayDoublePair -> {
+            INDArray output = net.rnnTimeStep(indArrayDoublePair.getKey());
+            predicts.add(StockDataSetIterator.deNormalize(
+                    output.getDouble(StockDataSetIterator.LENGTH - 1), iterator.getCloseMin(), iterator.getCloseMax()
+            ));
+            actuals.add(indArrayDoublePair.getValue());
+        });
 
         plote(actuals, predicts);
     }
@@ -51,27 +45,20 @@ public class Dl4jTest {
     private static void plote(List<Double> actuals, List<Double> predicts) {
         final XYSeries series = new XYSeries("USD/SEK");
         final XYSeries series2 = new XYSeries("USD/SEK PREDICT");
-        int bar = 1;
+
         double max = 0;
         double min = 999;
-        for (double close : actuals) {
-            if (bar++ == 1) continue;
-            if (close > max) max = close;
-            if (close < min) min = close;
-            series.add(bar, close);
-        }
+        for (int i = 0; i < actuals.size(); i++) {
+            if (actuals.get(i) > max) max = actuals.get(i);
+            if (actuals.get(i) < min) min = actuals.get(i);
+            if (predicts.get(i) > max) max = predicts.get(i);
+            if (predicts.get(i) < min) min = predicts.get(i);
 
-        int shift = 1;
-        bar = actuals.size() - predicts.size() * shift + 5;
-        for (double close : predicts) {
-            if (close > max) max = close;
-            if (close < min) min = close;
-            series2.add(bar, close);
-            bar = bar + shift;
+            series.add(i, actuals.get(i));
+            series2.add(i, predicts.get(i));
         }
 
         final XYSeriesCollection data = new XYSeriesCollection();
-
         data.addSeries(series);
         data.addSeries(series2);
 

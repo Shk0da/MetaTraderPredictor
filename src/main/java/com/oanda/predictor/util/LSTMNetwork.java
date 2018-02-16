@@ -19,7 +19,7 @@ public class LSTMNetwork {
 
     private static final double learningRate = 0.05;
     private static final int iterations = 1;
-    private static final int seed = 12345;
+    private static final int seed = 777;
 
     private static final int lstmLayer1Size = 256;
     private static final int lstmLayer2Size = 256;

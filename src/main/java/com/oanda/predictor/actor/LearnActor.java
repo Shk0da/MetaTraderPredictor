@@ -25,10 +25,14 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static com.oanda.predictor.repository.PredictionRepository.Signal;
 import static com.oanda.predictor.util.StockDataSetIterator.*;
@@ -58,8 +62,8 @@ public class LearnActor extends UntypedAbstractActor {
     @Setter
     public volatile Status status = Status.NOTHING;
 
-    private double closeMin = Double.MAX_VALUE;
-    private double closeMax = Double.MIN_VALUE;
+    private volatile double closeMin;
+    private volatile double closeMax;
 
     @Value("${predictor.sensitivity.trend}")
     private Double sensitivityTrend;
@@ -97,27 +101,34 @@ public class LearnActor extends UntypedAbstractActor {
 
     private void predict() {
         Signal signal = Signal.NONE;
-        List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE)
-                .stream()
-                .filter(candle -> candle.getClose() > 0)
-                .collect(Collectors.toList());
+
+        int dataSize = LENGTH + VECTOR_SIZE;
+        List<Candle> last = candleRepository.getLastCandles(instrument, step, dataSize);
 
         // check vector
-        if (last.size() < VECTOR_SIZE) return;
+        if (last.size() < dataSize) return;
 
         // check new data
-        double vectorClose = last.get(4).getClose();
+        double vectorClose = last.get(last.size() - 1).getClose();
         if (lastCandleClose > 0 && lastCandleClose == vectorClose) return;
         lastCandleClose = vectorClose;
 
-        INDArray input = Nd4j.create(new int[]{1, VECTOR_SIZE}, 'f');
-        input.putScalar(new int[]{0, 0}, normalize(last.get(0).getClose(), closeMin, closeMax));
-        input.putScalar(new int[]{0, 1}, normalize(last.get(1).getClose(), closeMin, closeMax));
-        input.putScalar(new int[]{0, 2}, normalize(last.get(2).getClose(), closeMin, closeMax));
-        input.putScalar(new int[]{0, 3}, normalize(last.get(3).getClose(), closeMin, closeMax));
-        input.putScalar(new int[]{0, 4}, normalize(last.get(4).getClose(), closeMin, closeMax));
+        INDArray output;
+        try {
+            INDArray input = Nd4j.create(new int[]{LENGTH, VECTOR_SIZE}, 'f');
+            for (int j = VECTOR_SIZE; j < dataSize; j++) {
+                input.putScalar(new int[]{j - VECTOR_SIZE, 0}, normalize(last.get(j - 4).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{j - VECTOR_SIZE, 1}, normalize(last.get(j - 3).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{j - VECTOR_SIZE, 2}, normalize(last.get(j - 2).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{j - VECTOR_SIZE, 3}, normalize(last.get(j - 1).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{j - VECTOR_SIZE, 4}, normalize(last.get(j).getClose(), closeMin, closeMax));
+            }
+            output = neuralNetwork.rnnTimeStep(input);
+        } catch (Exception ex) {
+            log.error(ex.getMessage());
+            return;
+        }
 
-        INDArray output = neuralNetwork.rnnTimeStep(input);
         double closePrice = Precision.round(deNormalize(output.getDouble(0), closeMin, closeMax), 5);
         if (closePrice != Double.NaN && closePrice > 0 && closePrice != lastPredict) {
             if (lastPredict > 0) {
@@ -145,19 +156,20 @@ public class LearnActor extends UntypedAbstractActor {
 
         List<Candle> candles = candleRepository.getLastCandles(instrument, step, candleRepository.getLimit());
         setStatus(Status.TRAINED);
-        StockDataSetIterator iterator = new StockDataSetIterator(candles, 256, 1);
-        closeMin = iterator.getCloseMin();
-        closeMax = iterator.getCloseMax();
+        StockDataSetIterator iterator = new StockDataSetIterator(candles, 1);
         if (getNeuralNetwork() == null) {
             neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+            closeMin = iterator.getCloseMin();
+            closeMax = iterator.getCloseMax();
         } else {
             neuralNetwork.evaluateRegression(iterator);
         }
 
         if (storeDisk) {
             try {
-                ModelSerializer.writeModel(neuralNetwork, locationToSave, true);
-                log.info("The model is saved to disk: {}", locationToSave);
+                String filePath = locationToSave + "_" + closeMin + "_" + closeMax;
+                ModelSerializer.writeModel(neuralNetwork, filePath, true);
+                log.info("The model is saved to disk: {}", filePath);
             } catch (IOException ex) {
                 log.error(ex.getMessage());
             }
@@ -169,11 +181,22 @@ public class LearnActor extends UntypedAbstractActor {
 
     @Synchronized
     private MultiLayerNetwork getNeuralNetwork() {
-        if (storeDisk && neuralNetwork == null) {
-            try {
-                if (locationToSave != null && (new File(locationToSave).exists())) {
-                    neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(locationToSave);
-                    log.info("The model is loaded from the disk: {}", locationToSave);
+        if (storeDisk && neuralNetwork == null && locationToSave != null) {
+            try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "*")) {
+                File fileNetwork = null;
+                Iterator<Path> iterator = dirStream.iterator();
+                if (iterator.hasNext()) {
+                    fileNetwork = iterator.next().toFile();
+                }
+
+                if (fileNetwork != null) {
+                    String fileName = fileNetwork.getName();
+                    neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(fileName);
+                    int firstDelimiter = fileName.indexOf('_');
+                    int secondDelimiter = fileName.lastIndexOf('_');
+                    closeMin = Double.valueOf(fileName.substring(firstDelimiter + 1, secondDelimiter));
+                    closeMax = Double.valueOf(fileName.substring(secondDelimiter + 1, fileName.length()));
+                    log.info("The model is loaded from the disk: {}", fileName);
                 }
             } catch (IOException ex) {
                 log.error(ex.getMessage());

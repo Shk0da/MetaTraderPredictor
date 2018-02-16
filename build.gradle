@@ -31,6 +31,8 @@ dependencies {
     compile("org.nd4j:nd4j-native:0.9.1:windows-x86_64")
     compile("org.nd4j:nd4j-native-platform:0.9.1")
     compile("org.deeplearning4j:deeplearning4j-core:0.9.1")
+    // If you have NVIDEA GPU
+    // compile("org.nd4j:nd4j-cuda-8.0-platform:0.9.1")
 
     compile("com.opencsv:opencsv:3.8")
     compile("org.jfree:jfreechart:1.0.19")

@@ -17,9 +17,8 @@ import java.util.NoSuchElementException;
 public class StockDataSetIterator implements DataSetIterator {
 
     public static final int VECTOR_SIZE = 5;
-
-    private int miniBatchSize;
-    private int exampleLength;
+    public static final int LENGTH = 22;
+    public static final int MINI_BATCH_SIZE = 128;
 
     @Getter
     private double openMin = Double.MAX_VALUE;
@@ -48,16 +47,12 @@ public class StockDataSetIterator implements DataSetIterator {
     @Getter
     private List<Candle> train;
     @Getter
-    private List<Pair<INDArray, INDArray>> test;
+    private List<Pair<INDArray, Double>> test;
 
-    public StockDataSetIterator(List<Candle> stockDataList, int miniBatchSize, double splitRatio) {
-        this.miniBatchSize = miniBatchSize;
-        this.exampleLength = 22 > stockDataList.size() ? stockDataList.size() : 22;
+    public StockDataSetIterator(List<Candle> stockDataList, double splitRatio) {
         int split = (int) Math.round(stockDataList.size() * splitRatio);
 
-        for (int i = 0; i < stockDataList.size(); i++) {
-            Candle candle = stockDataList.get(i);
-
+        stockDataList.forEach(candle -> {
             openMin = (candle.getOpen() < openMin) ? candle.getOpen() : openMin;
             openMax = (candle.getOpen() > openMax) ? candle.getOpen() : openMax;
 
@@ -72,7 +67,7 @@ public class StockDataSetIterator implements DataSetIterator {
 
             volumeMin = (candle.getVolume() < volumeMin) ? candle.getVolume() : volumeMin;
             volumeMax = (candle.getVolume() > volumeMax) ? candle.getVolume() : volumeMax;
-        }
+        });
 
         train = stockDataList.subList(0, split);
         test = generateTestDataSet(stockDataList.subList(split, stockDataList.size()));
@@ -82,9 +77,8 @@ public class StockDataSetIterator implements DataSetIterator {
 
     private void initializeOffsets() {
         exampleStartOffsets.clear();
-        int window = exampleLength + 1;
+        int window = LENGTH + 1;
         for (int i = 0; i < train.size() - window; i++) {
-            if (i < 64) continue;
             exampleStartOffsets.add(i);
         }
     }
@@ -94,20 +88,21 @@ public class StockDataSetIterator implements DataSetIterator {
         if (exampleStartOffsets.size() == 0) throw new NoSuchElementException();
         int actualMiniBatchSize = Math.min(num, exampleStartOffsets.size());
 
-        INDArray input = Nd4j.create(new int[]{actualMiniBatchSize, VECTOR_SIZE, exampleLength}, 'f');
-        INDArray label = Nd4j.create(new int[]{actualMiniBatchSize, 1, exampleLength}, 'f');
+        INDArray input = Nd4j.create(new int[]{actualMiniBatchSize, VECTOR_SIZE, LENGTH}, 'f');
+        INDArray label = Nd4j.create(new int[]{actualMiniBatchSize, 1, LENGTH}, 'f');
         for (int index = 0; index < actualMiniBatchSize; index++) {
-            int startIdx = exampleStartOffsets.removeFirst();
-            int endIdx = startIdx + exampleLength;
-            for (int i = startIdx + 5; i < endIdx - 5; i++) {
+            int startIdx = exampleStartOffsets.removeFirst() + VECTOR_SIZE;
+            int endIdx = startIdx + LENGTH - VECTOR_SIZE;
+            for (int i = startIdx; i < endIdx; i++) {
                 int c = i - startIdx;
-                input.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx - 5).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{index, 1, c}, normalize(train.get(startIdx - 4).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{index, 2, c}, normalize(train.get(startIdx - 3).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{index, 3, c}, normalize(train.get(startIdx - 2).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{index, 4, c}, normalize(train.get(startIdx - 1).getClose(), closeMin, closeMax));
-
-                label.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx + 5).getClose(), closeMin, closeMax));
+                //input
+                input.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx - 4).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{index, 1, c}, normalize(train.get(startIdx - 3).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{index, 2, c}, normalize(train.get(startIdx - 2).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{index, 3, c}, normalize(train.get(startIdx - 1).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{index, 4, c}, normalize(train.get(startIdx).getClose(), closeMin, closeMax));
+                // label
+                label.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx + 1).getClose(), closeMin, closeMax));
             }
             if (exampleStartOffsets.size() == 0) break;
         }
@@ -117,7 +112,7 @@ public class StockDataSetIterator implements DataSetIterator {
 
     @Override
     public int totalExamples() {
-        return train.size() - exampleLength - 1;
+        return train.size() - LENGTH - 1;
     }
 
     @Override
@@ -147,7 +142,7 @@ public class StockDataSetIterator implements DataSetIterator {
 
     @Override
     public int batch() {
-        return miniBatchSize;
+        return MINI_BATCH_SIZE;
     }
 
     @Override
@@ -182,34 +177,32 @@ public class StockDataSetIterator implements DataSetIterator {
 
     @Override
     public DataSet next() {
-        return next(miniBatchSize);
+        return next(MINI_BATCH_SIZE);
     }
 
-    private List<Pair<INDArray, INDArray>> generateTestDataSet(List<Candle> stockDataList) {
-        int window = exampleLength + 1;
-        List<Pair<INDArray, INDArray>> test = new ArrayList<>();
-        for (int i = 5; i < stockDataList.size() - window; i++) {
-            INDArray input = Nd4j.create(new int[]{exampleLength, VECTOR_SIZE}, 'f');
-            for (int j = i; j < i + exampleLength; j++) {
-                input.putScalar(new int[]{j - i, 0}, normalize(stockDataList.get(j - 5).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - i, 1}, normalize(stockDataList.get(j - 4).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - i, 2}, normalize(stockDataList.get(j - 3).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - i, 3}, normalize(stockDataList.get(j - 2).getClose(), closeMin, closeMax));
-                input.putScalar(new int[]{j - i, 4}, normalize(stockDataList.get(j - 1).getClose(), closeMin, closeMax));
+    private List<Pair<INDArray, Double>> generateTestDataSet(List<Candle> stockDataList) {
+        int window = LENGTH + 1;
+        List<Pair<INDArray, Double>> test = new ArrayList<>();
+        for (int i = VECTOR_SIZE; i < stockDataList.size() - window; i++) {
+            INDArray input = Nd4j.create(new int[]{LENGTH, VECTOR_SIZE}, 'f');
+            for (int j = i; j < i + LENGTH; j++) {
+                input.putScalar(new int[]{j - i, 0}, normalize(stockDataList.get(j - 4).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{j - i, 1}, normalize(stockDataList.get(j - 3).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{j - i, 2}, normalize(stockDataList.get(j - 2).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{j - i, 3}, normalize(stockDataList.get(j - 1).getClose(), closeMin, closeMax));
+                input.putScalar(new int[]{j - i, 4}, normalize(stockDataList.get(j).getClose(), closeMin, closeMax));
             }
 
-            INDArray label = Nd4j.create(new int[]{1}, 'f');
-            label.putScalar(new int[]{0}, normalize(stockDataList.get(i + exampleLength).getClose(), closeMin, closeMax));
-            test.add(new Pair<>(input, label));
+            test.add(new Pair<>(input, stockDataList.get(i + LENGTH).getClose()));
         }
         return test;
     }
 
     public static double normalize(double input, double min, double max) {
-        return (input - min) / (max - min) * 0.8 + 0.0001;
+        return (input - min) / (max - min);  // Alternative: (input - min) / (max - min) * 0.8 + 0.0001;
     }
 
     public static double deNormalize(double input, double min, double max) {
-        return min + (input - 0.0001) * (max - min) / 0.8;
+        return input * (max - min) + min; // Alternative: min + (input - 0.0001) * (max - min) / 0.8;
     }
 }
