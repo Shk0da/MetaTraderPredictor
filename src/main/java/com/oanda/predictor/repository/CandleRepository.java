@@ -74,11 +74,6 @@ public class CandleRepository {
             return current;
         }
 
-        if (current.size() > limit * 1.2) {
-            List<Candle> trimmedList = current.subList(current.size() - limit, current.size());
-            this.candles.put(getKey(symbol, step), getMapFromList(trimmedList));
-        }
-
         if (size > current.size()) {
             size = current.size() - 1;
         }
@@ -100,6 +95,10 @@ public class CandleRepository {
     }
 
     private TreeMap<Timestamp, Candle> getMapFromList(List<Candle> current) {
+        if (current.size() > limit * 1.2) {
+            current = current.subList(current.size() - limit, current.size());
+        }
+
         return current.stream()
                 .filter(candle -> candle.getClose() > 0)
                 .collect(Collectors.toMap(Candle::getTime, item -> item, (a, b) -> b, TreeMap::new));
