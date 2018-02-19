@@ -18,7 +18,7 @@ public class StockDataSetIterator implements DataSetIterator {
 
     public static final int VECTOR_SIZE = 5;
     public static final int LENGTH = 22;
-    public static final int MINI_BATCH_SIZE = 128;
+    public static final int MINI_BATCH_SIZE = 32;
 
     @Getter
     private double openMin = Double.MAX_VALUE;
@@ -100,7 +100,7 @@ public class StockDataSetIterator implements DataSetIterator {
                     input.putScalar(new int[]{index, k, c}, normalize(train.get(startIdx - j).getClose(), closeMin, closeMax));
                 }
                 // label
-                label.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx).getClose(), closeMin, closeMax));
+                label.putScalar(new int[]{index, 0, c}, normalize(train.get(startIdx + 1).getClose(), closeMin, closeMax));
             }
             if (exampleStartOffsets.size() == 0) break;
         }

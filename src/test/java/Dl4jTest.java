@@ -24,7 +24,7 @@ import java.util.List;
 public class Dl4jTest {
 
     public static void main(String[] args) {
-        StockDataSetIterator iterator = new StockDataSetIterator(getData(), 0.7);
+        StockDataSetIterator iterator = new StockDataSetIterator(getData(), 0.9);
         MultiLayerNetwork net = LSTMNetwork.buildLstmNetworks(iterator);
 
         List<Pair<INDArray, Double>> testData = iterator.getTest();
@@ -105,6 +105,6 @@ public class Dl4jTest {
             System.out.println(e.getMessage());
         }
 
-        return data.subList(0, 1000);
+        return data.subList(0, 5000);
     }
 }
