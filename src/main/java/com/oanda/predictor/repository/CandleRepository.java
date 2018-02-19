@@ -78,7 +78,7 @@ public class CandleRepository {
             size = current.size() - 1;
         }
 
-        int fromIndex = current.size() - size - 1;
+        int fromIndex = current.size() - size;
         if (fromIndex < 0) {
             return current;
         }
