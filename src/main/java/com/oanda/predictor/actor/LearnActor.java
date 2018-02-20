@@ -150,6 +150,8 @@ public class LearnActor extends UntypedAbstractActor {
         }
 
         List<Candle> candles = candleRepository.getLastCandles(instrument, step, candleRepository.getLimit());
+        if (candles.size() < candleRepository.getLimit()) return;
+
         setStatus(Status.TRAINED);
         StockDataSetIterator iterator = new StockDataSetIterator(candles, 1);
         if (getNeuralNetwork() == null) {
