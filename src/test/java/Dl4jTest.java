@@ -27,8 +27,8 @@ import java.util.List;
 @Slf4j
 public class Dl4jTest {
 
-    public static final String dataFileName = "Data2.csv";
-    public static final String networkFileName = "NeuralNetwork2";
+    public static final String dataFileName = "Data.csv";
+    public static final String networkFileName = "NeuralNetwork";
 
     public static void main(String[] args) {
         MultiLayerNetwork net;
