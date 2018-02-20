@@ -5,6 +5,7 @@ import com.oanda.predictor.domain.Candle;
 import com.oanda.predictor.provider.ApplicationContextProvider;
 import com.oanda.predictor.repository.CandleRepository;
 import com.oanda.predictor.repository.PredictionRepository;
+import com.oanda.predictor.util.CSVUtil;
 import com.oanda.predictor.util.LSTMNetwork;
 import com.oanda.predictor.util.StockDataSetIterator;
 import lombok.Getter;
@@ -167,7 +168,9 @@ public class LearnActor extends UntypedAbstractActor {
                 String filePath = locationToSave + "_" + closeMin + "_" + closeMax;
                 ModelSerializer.writeModel(neuralNetwork, filePath, true);
                 log.info("The model is saved to disk: {}", filePath);
-            } catch (IOException ex) {
+                CSVUtil.saveCandles(candles, filePath + "Data");
+                log.info("The data is saved to disk also");
+            } catch (Exception ex) {
                 log.error(ex.getMessage());
             }
         }

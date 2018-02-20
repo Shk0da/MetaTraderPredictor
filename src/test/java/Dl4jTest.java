@@ -1,9 +1,11 @@
 import com.google.common.collect.Lists;
 import com.oanda.predictor.domain.Candle;
+import com.oanda.predictor.util.CSVUtil;
 import com.oanda.predictor.util.LSTMNetwork;
 import com.oanda.predictor.util.StockDataSetIterator;
-import com.opencsv.CSVReader;
+import lombok.extern.slf4j.Slf4j;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.util.ModelSerializer;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -17,15 +19,32 @@ import org.jfree.ui.RefineryUtilities;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.primitives.Pair;
 
-import java.io.FileReader;
+import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.List;
 
+@Slf4j
 public class Dl4jTest {
 
+    public static final String dataFileName = "Data2.csv";
+    public static final String networkFileName = "NeuralNetwork2";
+
     public static void main(String[] args) {
-        StockDataSetIterator iterator = new StockDataSetIterator(getData(), 0.9);
-        MultiLayerNetwork net = LSTMNetwork.buildLstmNetworks(iterator);
+        MultiLayerNetwork net;
+        List<Candle> data = CSVUtil.getCandles(Dl4jTest.class.getResource(dataFileName).getFile(), 5000);
+        StockDataSetIterator iterator = new StockDataSetIterator(data, 0.9);
+        URL neuralNetworkFile = Dl4jTest.class.getResource(networkFileName);
+        if (neuralNetworkFile != null && new File(neuralNetworkFile.getFile()).exists()) {
+            try {
+                net = ModelSerializer.restoreMultiLayerNetwork(neuralNetworkFile.getFile());
+            } catch (IOException ex) {
+                log.error(ex.getMessage());
+                return;
+            }
+        } else {
+            net = LSTMNetwork.buildLstmNetworks(iterator);
+        }
 
         List<Pair<INDArray, Double>> testData = iterator.getTest();
         List<Double> predicts = Lists.newArrayList();
@@ -43,8 +62,8 @@ public class Dl4jTest {
     }
 
     private static void plote(List<Double> actuals, List<Double> predicts) {
-        final XYSeries series = new XYSeries("USD/SEK");
-        final XYSeries series2 = new XYSeries("USD/SEK PREDICT");
+        final XYSeries series = new XYSeries("ACTUAL");
+        final XYSeries series2 = new XYSeries("PREDICT");
 
         double max = 0;
         double min = 999;
@@ -63,8 +82,8 @@ public class Dl4jTest {
         data.addSeries(series2);
 
         final JFreeChart chart = ChartFactory.createXYLineChart(
-                "USD/SEK",
-                "Tick M5",
+                "Symbol",
+                "Ticks",
                 "ClosePrice",
                 data,
                 PlotOrientation.VERTICAL,
@@ -79,32 +98,10 @@ public class Dl4jTest {
         final ChartPanel chartPanel = new ChartPanel(chart);
         chartPanel.setPreferredSize(new java.awt.Dimension(1024, 600));
 
-        ApplicationFrame appFrane = new ApplicationFrame("USD/SEK");
+        ApplicationFrame appFrane = new ApplicationFrame("Dl4jTest");
         appFrane.setContentPane(chartPanel);
         appFrane.pack();
         RefineryUtilities.centerFrameOnScreen(appFrane);
         appFrane.setVisible(true);
-    }
-
-    private static List<Candle> getData() {
-        List<Candle> data = Lists.newArrayList();
-        String csvFile = Dl4jTest.class.getResource("data.csv").getFile();
-        try {
-            CSVReader reader = new CSVReader(new FileReader(csvFile));
-            String[] line;
-            while ((line = reader.readNext()) != null) {
-                Candle candle = new Candle();
-                candle.setOpen(Double.valueOf(line[1]));
-                candle.setHigh(Double.valueOf(line[2]));
-                candle.setLow(Double.valueOf(line[3]));
-                candle.setClose(Double.valueOf(line[4]));
-                candle.setVolume(Double.valueOf(line[5]).intValue());
-                data.add(candle);
-            }
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-        }
-
-        return data.subList(0, 5000);
     }
 }
