@@ -173,15 +173,9 @@ public class LearnActor extends UntypedAbstractActor {
 
         try {
             StockDataSetIterator iterator = new StockDataSetIterator(candles, 1);
-            MultiLayerNetwork neuralNetwork = getNeuralNetwork();
-            if (neuralNetwork == null) {
-                neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
-            } else {
-                neuralNetwork.evaluateRegression(iterator);
-            }
-            this.neuralNetwork = neuralNetwork;
-            this.closeMin = iterator.getCloseMin();
-            this.closeMax = iterator.getCloseMax();
+            neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+            closeMin = iterator.getCloseMin();
+            closeMax = iterator.getCloseMax();
 
             if (storeDisk) {
                 try {
@@ -220,6 +214,7 @@ public class LearnActor extends UntypedAbstractActor {
                     closeMin = Double.valueOf(fileName.substring(firstDelimiter + 1, secondDelimiter));
                     closeMax = Double.valueOf(fileName.substring(secondDelimiter + 1, fileName.length()));
                     log.info("The model is loaded from the disk: {}", fileName);
+                    lastLearn = DateTime.now();
                 }
             } catch (IOException ex) {
                 log.error(ex.getMessage());
