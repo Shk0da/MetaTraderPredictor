@@ -1,6 +1,7 @@
 package com.oanda.predictor.actor;
 
 import akka.actor.UntypedAbstractActor;
+import com.google.common.collect.Lists;
 import com.oanda.predictor.domain.Candle;
 import com.oanda.predictor.provider.ApplicationContextProvider;
 import com.oanda.predictor.repository.CandleRepository;
@@ -24,16 +25,16 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.oanda.predictor.repository.PredictionRepository.Signal;
 import static com.oanda.predictor.util.StockDataSetIterator.*;
@@ -51,6 +52,7 @@ public class LearnActor extends UntypedAbstractActor {
     private volatile MultiLayerNetwork neuralNetwork;
     private volatile DateTime lastLearn;
     private volatile Double lastPredict = 0D;
+    private volatile List<Double> lastPredicts = Lists.newArrayList();
     private volatile Double lastCandleClose = 0D;
 
     @Autowired
@@ -100,6 +102,7 @@ public class LearnActor extends UntypedAbstractActor {
         }
     }
 
+    @Synchronized
     private void predict() {
         Signal signal = Signal.NONE;
         List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE);
@@ -120,7 +123,7 @@ public class LearnActor extends UntypedAbstractActor {
             }
             output = neuralNetwork.rnnTimeStep(input);
         } catch (Exception ex) {
-            log.error(ex.getMessage());
+            log.error("Predict {}/{} failed: {}", instrument, step, ex.getMessage());
             predictionRepository.addPredict(instrument, signal);
             return;
         }
@@ -128,18 +131,31 @@ public class LearnActor extends UntypedAbstractActor {
         double closePrice = Precision.round(deNormalize(output.getDouble(0), closeMin, closeMax), 5);
         if (closePrice != Double.NaN && closePrice > 0 && closePrice != lastPredict) {
             if (lastPredict > 0) {
+                int trend = 0;
+                int checkCount = (int) (sensitivityTrend * 100);
+                if (lastPredicts.size() > checkCount) {
+                    double valPrev = 0;
+                    for (int i = lastPredicts.size() - 1; i > lastPredicts.size() - checkCount; i--) {
+                        double val = lastPredicts.get(i);
+                        if (val > valPrev) trend++;
+                        if (val < valPrev) trend--;
+                        valPrev = val;
+                    }
+                }
                 double spread = last.get(0).getBid() - last.get(0).getAsk();
                 boolean diffMoreSpread = Math.abs(closePrice - lastPredict) > spread;
-                if (closePrice > lastPredict && diffMoreSpread && (closePrice / (lastPredict / 100) - 100) > sensitivityTrend) {
+
+                if (trend >= checkCount - 1 && closePrice > lastPredict && diffMoreSpread && (closePrice / (lastPredict / 100) - 100) > sensitivityTrend) {
                     signal = Signal.UP;
                 }
 
-                if (closePrice < lastPredict && diffMoreSpread && (lastPredict / (closePrice / 100) - 100) > sensitivityTrend) {
+                if (trend <= -(checkCount - 1) && closePrice < lastPredict && diffMoreSpread && (lastPredict / (closePrice / 100) - 100) > sensitivityTrend) {
                     signal = Signal.DOWN;
                 }
             }
 
             lastPredict = closePrice;
+            lastPredicts.add(lastPredict);
         }
 
         predictionRepository.addPredict(instrument, signal);
@@ -154,25 +170,30 @@ public class LearnActor extends UntypedAbstractActor {
         if (candles.size() < candleRepository.getLimit()) return;
 
         setStatus(Status.TRAINED);
-        StockDataSetIterator iterator = new StockDataSetIterator(candles, 1);
-        if (getNeuralNetwork() == null) {
-            neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+
+        try {
+            StockDataSetIterator iterator = new StockDataSetIterator(candles, 1);
+            if (getNeuralNetwork() == null) {
+                neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
+            } else {
+                neuralNetwork.evaluateRegression(iterator);
+            }
             closeMin = iterator.getCloseMin();
             closeMax = iterator.getCloseMax();
-        } else {
-            neuralNetwork.evaluateRegression(iterator);
-        }
 
-        if (storeDisk) {
-            try {
-                String filePath = locationToSave + "_" + closeMin + "_" + closeMax;
-                ModelSerializer.writeModel(neuralNetwork, filePath, true);
-                log.info("The model is saved to disk: {}", filePath);
-                CSVUtil.saveCandles(candles, filePath + "Data");
-                log.info("The data is saved to disk also");
-            } catch (Exception ex) {
-                log.error(ex.getMessage());
+            if (storeDisk) {
+                try {
+                    String filePath = locationToSave + "_" + closeMin + "_" + closeMax;
+                    ModelSerializer.writeModel(neuralNetwork, filePath, true);
+                    log.info("The model is saved to disk: {}", filePath);
+                    CSVUtil.saveCandles(candles, filePath + "Data");
+                    log.info("The data is saved to disk also");
+                } catch (IOException ex) {
+                    log.error("Failed save to disk {}/{}: {}", instrument, step, ex.getMessage());
+                }
             }
+        } catch (Exception ex) {
+            log.error("Failed create network {}/{}: {}", instrument, step, ex.getMessage());
         }
 
         lastLearn = DateTime.now();
@@ -183,14 +204,13 @@ public class LearnActor extends UntypedAbstractActor {
     private MultiLayerNetwork getNeuralNetwork() {
         if (storeDisk && neuralNetwork == null && locationToSave != null) {
             try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "*")) {
-                File fileNetwork = null;
-                Iterator<Path> iterator = dirStream.iterator();
-                if (iterator.hasNext()) {
-                    fileNetwork = iterator.next().toFile();
-                }
+                List<Path> paths = Lists.newArrayList(dirStream.iterator())
+                        .stream()
+                        .sorted(Comparator.comparing(o -> o.toFile().lastModified()))
+                        .collect(Collectors.toList());
 
-                if (fileNetwork != null) {
-                    String fileName = fileNetwork.getName();
+                if (!paths.isEmpty()) {
+                    String fileName = paths.get(paths.size() - 1).toFile().getName();
                     neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(fileName);
                     int firstDelimiter = fileName.indexOf('_');
                     int secondDelimiter = fileName.lastIndexOf('_');
