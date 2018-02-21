@@ -123,7 +123,7 @@ public class LearnActor extends UntypedAbstractActor {
             }
             output = neuralNetwork.rnnTimeStep(input);
         } catch (Exception ex) {
-            log.error("Predict {}/{} failed: {}", instrument, step, ex.getMessage());
+            log.error("Predict {}{} failed: {}", instrument, step, ex.getMessage());
             predictionRepository.addPredict(instrument, signal);
             return;
         }
@@ -173,13 +173,15 @@ public class LearnActor extends UntypedAbstractActor {
 
         try {
             StockDataSetIterator iterator = new StockDataSetIterator(candles, 1);
-            if (getNeuralNetwork() == null) {
+            MultiLayerNetwork neuralNetwork = getNeuralNetwork();
+            if (neuralNetwork == null) {
                 neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
             } else {
                 neuralNetwork.evaluateRegression(iterator);
             }
-            closeMin = iterator.getCloseMin();
-            closeMax = iterator.getCloseMax();
+            this.neuralNetwork = neuralNetwork;
+            this.closeMin = iterator.getCloseMin();
+            this.closeMax = iterator.getCloseMax();
 
             if (storeDisk) {
                 try {
@@ -189,11 +191,11 @@ public class LearnActor extends UntypedAbstractActor {
                     CSVUtil.saveCandles(candles, filePath + "Data");
                     log.info("The data is saved to disk also");
                 } catch (IOException ex) {
-                    log.error("Failed save to disk {}/{}: {}", instrument, step, ex.getMessage());
+                    log.error("Failed save to disk {}{}: {}", instrument, step, ex.getMessage());
                 }
             }
         } catch (Exception ex) {
-            log.error("Failed create network {}/{}: {}", instrument, step, ex.getMessage());
+            log.error("Failed create network {}{}: {}", instrument, step, ex.getMessage());
         }
 
         lastLearn = DateTime.now();
@@ -206,6 +208,7 @@ public class LearnActor extends UntypedAbstractActor {
             try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "*")) {
                 List<Path> paths = Lists.newArrayList(dirStream.iterator())
                         .stream()
+                        .filter(path -> !path.toString().contains(".csv"))
                         .sorted(Comparator.comparing(o -> o.toFile().lastModified()))
                         .collect(Collectors.toList());
 
