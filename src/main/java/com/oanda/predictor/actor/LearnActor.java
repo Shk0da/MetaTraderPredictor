@@ -180,8 +180,9 @@ public class LearnActor extends UntypedAbstractActor {
             closeMin = iterator.getCloseMin();
             closeMax = iterator.getCloseMax();
 
-            if (storeDisk) {
-                try {
+            if (storeDisk && locationToSave != null && neuralNetwork != null) {
+                try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "*")) {
+                    dirStream.iterator().forEachRemaining(path -> path.toFile().delete());
                     String filePath = locationToSave + "_" + closeMin + "_" + closeMax;
                     ModelSerializer.writeModel(neuralNetwork, filePath, true);
                     log.info("The model is saved to disk: {}", filePath);
