@@ -1,0 +1,1 @@
+web: java -Dserver.port=80 -jar build/libs/oanda-mt4.jar

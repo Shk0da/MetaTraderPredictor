@@ -37,9 +37,7 @@ dependencies {
     compile("com.opencsv:opencsv:3.8")
     compile("org.jfree:jfreechart:1.0.19")
 
-    compileOnly("org.projectlombok:lombok")
-
-    testCompile("junit:junit")
+    compile("org.projectlombok:lombok:1.16.20")
 }
 
 buildscript {
