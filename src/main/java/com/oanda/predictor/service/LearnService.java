@@ -11,12 +11,14 @@ import com.oanda.predictor.domain.Candle;
 import com.oanda.predictor.repository.CandleRepository;
 import com.oanda.predictor.repository.PredictionRepository;
 import lombok.Synchronized;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+@Slf4j
 @Service
 public class LearnService {
 
@@ -44,6 +46,8 @@ public class LearnService {
         if (candle.getAsk() > 0 && candle.getBid() > 0) {
             actor.tell(Messages.LEARN, actorSystem.guardian());
         }
+
+        log.info("Candle list size {} {}: added {}, total: {}", candle.getSymbol(), candle.getStep(), 1, candleRepository.getSize(candle.getSymbol(), candle.getStep()));
     }
 
     public String getPredict(String symbol, int step) {

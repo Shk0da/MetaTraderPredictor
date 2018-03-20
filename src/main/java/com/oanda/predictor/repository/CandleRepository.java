@@ -101,6 +101,7 @@ public class CandleRepository {
 
         return current.stream()
                 .filter(candle -> candle.getClose() > 0)
+                .distinct()
                 .collect(Collectors.toMap(Candle::getTime, item -> item, (a, b) -> b, TreeMap::new));
     }
 }
