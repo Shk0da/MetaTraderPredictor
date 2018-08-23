@@ -137,7 +137,7 @@ public class LearnActor extends UntypedAbstractActor {
                 }
 
                 boolean maUp = mas[emas.length - 1] > mas[emas.length - 2] && mas[emas.length - 2] > mas[emas.length - 3];
-                boolean emaUp = ema > emas[emas.length - 2] && emas[emas.length - 3] > emas[emas.length - 5];
+                boolean emaUp = emas[emas.length - 1] > emas[emas.length - 2] && emas[emas.length - 3] > emas[emas.length - 5];
                 if (emaUp && maUp && closePrice > maBlack && closePrice >= maWhite && closePrice > ema) {
                     signal = Signal.UP;
                 }
