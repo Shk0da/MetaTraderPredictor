@@ -18,7 +18,6 @@ import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.util.ModelSerializer;
 import org.joda.time.DateTime;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.factory.Nd4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
@@ -33,11 +32,13 @@ import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.oanda.predictor.repository.PredictionRepository.Signal;
-import static com.oanda.predictor.util.StockDataSetIterator.*;
+import static com.oanda.predictor.util.StockDataSetIterator.deNormalize;
+import static com.oanda.predictor.util.StockDataSetIterator.getVectorSize;
 
 @Slf4j
 @Scope("prototype")
@@ -50,10 +51,8 @@ public class LearnActor extends UntypedAbstractActor {
     private final Integer step;
 
     private volatile MultiLayerNetwork neuralNetwork;
-    private volatile DateTime lastLearn;
+    private volatile DateTime lastLearn = null;
     private volatile Double lastPredict = 0D;
-    @Setter
-    private volatile List<Double> lastPredicts = Lists.newArrayList();
     private volatile Double lastCandleClose = 0D;
 
     @Autowired
@@ -68,9 +67,6 @@ public class LearnActor extends UntypedAbstractActor {
 
     private volatile double closeMin;
     private volatile double closeMax;
-
-    @Value("${predictor.sensitivity.trend}")
-    private Double sensitivityTrend;
 
     @Value("${predictor.learn.interval}")
     private Integer learnInterval;
@@ -106,10 +102,10 @@ public class LearnActor extends UntypedAbstractActor {
     @Synchronized
     private void predict() {
         Signal signal = Signal.NONE;
-        List<Candle> last = candleRepository.getLastCandles(instrument, step, VECTOR_SIZE);
+        List<Candle> last = candleRepository.getLastCandles(instrument, step, getVectorSize());
 
         // check vector
-        if (last.size() < VECTOR_SIZE) return;
+        if (last.size() < getVectorSize()) return;
 
         // check new data
         double vectorClose = last.get(last.size() - 1).getClose();
@@ -117,48 +113,36 @@ public class LearnActor extends UntypedAbstractActor {
         lastCandleClose = vectorClose;
 
         INDArray output;
+        StockDataSetIterator iterator = new StockDataSetIterator(last, 0);
         try {
-            INDArray input = Nd4j.create(new int[]{1, VECTOR_SIZE}, 'f');
-            for (int j = VECTOR_SIZE, k = 0; j > 0; j--, k++) {
-                input.putScalar(new int[]{0, k}, normalize(last.get(k).getClose(), closeMin, closeMax));
-            }
-            output = neuralNetwork.rnnTimeStep(input);
+            output = neuralNetwork.rnnTimeStep(iterator.getTest().get(iterator.getTest().size() - 1).getKey());
         } catch (Exception ex) {
             log.error("Predict {}{} failed: {}", instrument, step, ex.getMessage());
             predictionRepository.addPredict(instrument, signal);
             return;
         }
 
-        double closePrice = Precision.round(deNormalize(output.getDouble(0), closeMin, closeMax), 5);
-        if (closePrice != Double.NaN && closePrice > 0 && closePrice != lastPredict) {
-            int checkCount = (int) (sensitivityTrend * 100);
-            if (lastPredict > 0) {
-                int trend = 0;
-                if (lastPredicts.size() > checkCount + 1) {
-                    double valPrev = lastPredicts.get(lastPredicts.size() - checkCount - 1);
-                    for (int i = lastPredicts.size() - checkCount; i < lastPredicts.size(); i++) {
-                        double val = lastPredicts.get(i);
-                        if (val > valPrev) trend++;
-                        if (val < valPrev) trend--;
-                        valPrev = val;
-                    }
-                }
-                double spread = Math.abs(last.get(0).getBid() - last.get(0).getAsk());
-                boolean diffMoreSpread = Math.abs(closePrice - lastPredict) > spread;
-                if (trend >= checkCount - 1 && closePrice > lastPredict && diffMoreSpread && (closePrice / (lastPredict / 100) - 100) > sensitivityTrend) {
-                    signal = Signal.UP;
-                }
-
-                if (trend <= -(checkCount - 1) && closePrice < lastPredict && diffMoreSpread && (lastPredict / (closePrice / 100) - 100) > sensitivityTrend) {
+        double maBlack = Precision.round(deNormalize(output.getDouble(3), iterator.getMins()[3], iterator.getMaxs()[3]), 5);
+        double maWhite = Precision.round(deNormalize(output.getDouble(4), iterator.getMins()[4], iterator.getMaxs()[4]), 5);
+        double ema = Precision.round(deNormalize(output.getDouble(5), iterator.getMins()[5], iterator.getMaxs()[5]), 5);
+        double closePrice = Precision.round(deNormalize(output.getDouble(6), closeMin, closeMax), 5);
+        if (!Double.isNaN(closePrice) && closePrice > 0 && closePrice != lastPredict) {
+            double[] mas = Objects.requireNonNull(iterator.getIndicators())[4];
+            double[] emas = Objects.requireNonNull(iterator.getIndicators())[5];
+            if (emas.length >= 5 && mas.length >= 3) {
+                boolean maDown = mas[emas.length - 1] < mas[emas.length - 2] && mas[emas.length - 2] < mas[emas.length - 3];
+                boolean emaDown = emas[emas.length - 1] < emas[emas.length - 2] && emas[emas.length - 3] < emas[emas.length - 5];
+                if (emaDown && maDown && closePrice < maBlack && closePrice < maWhite && closePrice < ema) {
                     signal = Signal.DOWN;
                 }
-            }
 
-            lastPredict = closePrice;
-            lastPredicts.add(lastPredict);
-            if (lastPredicts.size() > checkCount * 2) {
-                setLastPredicts(lastPredicts.subList(lastPredicts.size() - checkCount, lastPredicts.size()));
+                boolean maUp = mas[emas.length - 1] > mas[emas.length - 2] && mas[emas.length - 2] > mas[emas.length - 3];
+                boolean emaUp = ema > emas[emas.length - 2] && emas[emas.length - 3] > emas[emas.length - 5];
+                if (emaUp && maUp && closePrice > maBlack && closePrice > maWhite && closePrice > ema) {
+                    signal = Signal.UP;
+                }
             }
+            lastPredict = closePrice;
         }
 
         predictionRepository.addPredict(instrument, signal);
@@ -172,13 +156,12 @@ public class LearnActor extends UntypedAbstractActor {
         List<Candle> candles = candleRepository.getLastCandles(instrument, step, candleRepository.getLimit());
         if (candles.size() < candleRepository.getLimit()) return;
 
-        setStatus(Status.TRAINED);
-
         try {
+            setStatus(Status.TRAINED);
             StockDataSetIterator iterator = new StockDataSetIterator(candles, 1);
             neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
-            closeMin = iterator.getCloseMin();
-            closeMax = iterator.getCloseMax();
+            closeMin = iterator.getCloses()[0];
+            closeMax = iterator.getCloses()[1];
 
             if (storeDisk && locationToSave != null && neuralNetwork != null) {
                 try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "*")) {
@@ -188,16 +171,16 @@ public class LearnActor extends UntypedAbstractActor {
                     log.info("The model is saved to disk: {}", filePath);
                     CSVUtil.saveCandles(candles, filePath + "Data");
                     log.info("The data is saved to disk also");
+                    lastLearn = DateTime.now();
+                    setStatus(Status.READY);
                 } catch (IOException ex) {
                     log.error("Failed save to disk {}{}: {}", instrument, step, ex.getMessage());
                 }
             }
         } catch (Exception ex) {
             log.error("Failed create network {}{}: {}", instrument, step, ex.getMessage());
+            ex.printStackTrace();
         }
-
-        lastLearn = DateTime.now();
-        setStatus(Status.READY);
     }
 
     @Synchronized

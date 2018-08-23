@@ -70,7 +70,7 @@ public class CandleRepository {
     public List<Candle> getLastCandles(String symbol, int step, int size) {
         List<Candle> current = getCandles(getKey(symbol, step));
 
-        if (current.isEmpty() || current.size() < StockDataSetIterator.VECTOR_SIZE) {
+        if (current.isEmpty()) {
             return current;
         }
 

@@ -9,16 +9,16 @@ import java.util.Objects;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Candle {
-    private Timestamp time;
-    private String symbol;
-    private int step;
-    private double bid;
-    private double ask;
-    private double open;
-    private double high;
-    private double low;
-    private double close;
-    private int volume;
+    public Timestamp time;
+    public String symbol;
+    public int step;
+    public double bid;
+    public double ask;
+    public double open;
+    public double high;
+    public double low;
+    public double close;
+    public int volume;
 
     public String getKey() {
         return symbol + step;

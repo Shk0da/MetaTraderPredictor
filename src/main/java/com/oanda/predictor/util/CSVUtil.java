@@ -69,6 +69,6 @@ public class CSVUtil {
             data.add(candle);
         }
 
-        return data.subList(0, data.size() > size ? data.size() : size);
+        return data.subList(0, data.size() < size ? data.size() : size);
     }
 }
