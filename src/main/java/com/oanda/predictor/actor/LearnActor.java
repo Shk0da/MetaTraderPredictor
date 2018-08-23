@@ -113,7 +113,7 @@ public class LearnActor extends UntypedAbstractActor {
         lastCandleClose = vectorClose;
 
         INDArray output;
-        StockDataSetIterator iterator = new StockDataSetIterator(last, 0);
+        StockDataSetIterator iterator = new StockDataSetIterator(last, 0.0);
         try {
             output = neuralNetwork.rnnTimeStep(iterator.getTest().get(iterator.getTest().size() - 1).getKey());
         } catch (Exception ex) {
@@ -132,13 +132,13 @@ public class LearnActor extends UntypedAbstractActor {
             if (emas.length >= 5 && mas.length >= 3) {
                 boolean maDown = mas[emas.length - 1] < mas[emas.length - 2] && mas[emas.length - 2] < mas[emas.length - 3];
                 boolean emaDown = emas[emas.length - 1] < emas[emas.length - 2] && emas[emas.length - 3] < emas[emas.length - 5];
-                if (emaDown && maDown && closePrice < maBlack && closePrice < maWhite && closePrice < ema) {
+                if (emaDown && maDown && closePrice < maBlack && closePrice <= maWhite && closePrice < ema) {
                     signal = Signal.DOWN;
                 }
 
                 boolean maUp = mas[emas.length - 1] > mas[emas.length - 2] && mas[emas.length - 2] > mas[emas.length - 3];
                 boolean emaUp = ema > emas[emas.length - 2] && emas[emas.length - 3] > emas[emas.length - 5];
-                if (emaUp && maUp && closePrice > maBlack && closePrice > maWhite && closePrice > ema) {
+                if (emaUp && maUp && closePrice > maBlack && closePrice >= maWhite && closePrice > ema) {
                     signal = Signal.UP;
                 }
             }
@@ -158,7 +158,7 @@ public class LearnActor extends UntypedAbstractActor {
 
         try {
             setStatus(Status.TRAINED);
-            StockDataSetIterator iterator = new StockDataSetIterator(candles, 1);
+            StockDataSetIterator iterator = new StockDataSetIterator(candles, 1.0);
             neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
             closeMin = iterator.getCloses()[0];
             closeMax = iterator.getCloses()[1];

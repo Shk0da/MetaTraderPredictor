@@ -9,6 +9,7 @@ out/
 *.jar
 *.nnet
 *.log
+NeuralNetwork*
 
 ### STS ###
 .apt_generated

@@ -48,7 +48,7 @@ class StockDataSetIterator(stockDataList: List<Candle>, splitRatio: Double = 1.0
 
         @JvmStatic
         fun getVectorSize(): Int {
-            return CHUNK_SHIFT + VECTOR_SIZE_1 + VECTOR_SIZE_2
+            return (CHUNK_SHIFT + VECTOR_SIZE_1 + VECTOR_SIZE_2) * 2
         }
     }
 
@@ -73,7 +73,7 @@ class StockDataSetIterator(stockDataList: List<Candle>, splitRatio: Double = 1.0
         }
 
         indicators = indicatorsSlice
-        train = stockDataList.subList(startIndexTrainData, split)
+        train = if (startIndexTrainData < split) stockDataList.subList(startIndexTrainData, split) else stockDataList.subList(0, 0)
         test = generateTestDataSet(stockDataList.subList(split, stockDataList.size))
 
         initializeOffsets()
@@ -207,7 +207,7 @@ class StockDataSetIterator(stockDataList: List<Candle>, splitRatio: Double = 1.0
 
     private fun generateTestDataSet(stockDataList: List<Candle>): List<Pair<INDArray, Double>> {
         val test = ArrayList<Pair<INDArray, Double>>()
-        var l = 0
+        var l = train.size
         for (i in VECTOR_SIZE_2 until stockDataList.size - 1) {
             var k = 0
             val input = Nd4j.create(intArrayOf(1, inputColumns()), 'f')
@@ -215,19 +215,21 @@ class StockDataSetIterator(stockDataList: List<Candle>, splitRatio: Double = 1.0
             while (k < VECTOR_SIZE_1) {
                 var n = 0
                 while (n <= VECTOR_K) {
-                    input.putScalar(intArrayOf(0, k), normalize(indicators!![n][l], mins[n], maxs[n]))
-                    debugVector.add("$n(" + (l) + "):" + indicators!![n][l])
+                    val indicator = if (l < indicators!![n].size - 1) indicators!![n][l] else indicators!![n][indicators!![n].size - 1]
+                    input.putScalar(intArrayOf(0, k), normalize(indicator, mins[n], maxs[n]))
+                    debugVector.add("$n($l):$indicator")
                     k++
                     n++
                 }
                 l++
             }
-            l = i - VECTOR_SIZE_2 + 1
+            l = train.size + i - VECTOR_SIZE_2 + 1
             k = VECTOR_SIZE_1
             var j = VECTOR_SIZE_2
             while (k < VECTOR_SIZE_1 + VECTOR_SIZE_2) {
-                input.putScalar(intArrayOf(0, k), normalize(stockDataList[i - j].close, closes[0], closes[1]))
-                debugVector.add((i - j).toString() + ":" + stockDataList[i - j].close)
+                val close = if (i - j < stockDataList.size - 1) stockDataList[i - j].close else stockDataList[stockDataList.size - 1].close
+                input.putScalar(intArrayOf(0, k), normalize(close, closes[0], closes[1]))
+                debugVector.add((i - j).toString() + ":" + close)
                 k++
                 j--
             }
@@ -254,8 +256,9 @@ class StockDataSetIterator(stockDataList: List<Candle>, splitRatio: Double = 1.0
                 while (k < VECTOR_SIZE_1) {
                     var n = 0
                     while (n <= VECTOR_K) {
-                        input.putScalar(intArrayOf(index, k, i - startIdx), normalize(indicators!![n][l], mins[n], maxs[n]))
-                        debugVector.add("$n(" + (l) + "):" + indicators!![n][l])
+                        val indicator = if (l < indicators!![n].size - 1) indicators!![n][l] else indicators!![n][indicators!![n].size - 1]
+                        input.putScalar(intArrayOf(index, k, i - startIdx), normalize(indicator, mins[n], maxs[n]))
+                        debugVector.add("$n($l):$indicator")
                         k++
                         n++
                     }
@@ -265,9 +268,9 @@ class StockDataSetIterator(stockDataList: List<Candle>, splitRatio: Double = 1.0
                 k = VECTOR_SIZE_1
                 var j = VECTOR_SIZE_2
                 while (k < VECTOR_SIZE_1 + VECTOR_SIZE_2) {
-                    if (i - j >= train.size - 1) break
-                    input.putScalar(intArrayOf(index, k, i - startIdx), normalize(train[i - j].close, closes[0], closes[1]))
-                    debugVector.add((i - j).toString() + ":" + train[i - j].close)
+                    val close = if (i - j < train.size - 1) train[i - j].close else train[train.size - 1].close
+                    input.putScalar(intArrayOf(index, k, i - startIdx), normalize(close, closes[0], closes[1]))
+                    debugVector.add((i - j).toString() + ":$close")
                     k++
                     j--
                 }

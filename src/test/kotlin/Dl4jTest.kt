@@ -19,8 +19,8 @@ import java.io.IOException
 class Dl4jExpApplicationTest
 
 private val log = LoggerFactory.getLogger(Dl4jExpApplicationTest::class.java)
-private const val DATA_SIZE = 5_000
-private const val SPLIT_RATIO = 0.9
+
+private const val DATA_SIZE = 1_000
 
 const val dataFileName = "Data.csv"
 const val networkFileName = "NeuralNetwork"
@@ -33,7 +33,7 @@ fun main(args: Array<String>) {
 fun predictTest() {
     val dataFile = Dl4jExpApplicationTest::class.java.getResource("/$dataFileName").file
     val data = CSVUtil.getCandles(dataFile, DATA_SIZE)
-    val iterator = StockDataSetIterator(data, SPLIT_RATIO)
+    val iterator = StockDataSetIterator(data, 0.0)
     val neuralNetworkFile = Dl4jExpApplicationTest::class.java.getResource(networkFileName)
     val net = if (neuralNetworkFile != null && File(neuralNetworkFile.file).exists()) {
         try {
@@ -42,41 +42,46 @@ fun predictTest() {
             log.error(ex.message)
             return
         }
-
     } else {
-        LSTMNetwork.buildLstmNetworks(iterator)
+        LSTMNetwork.buildLstmNetworks(StockDataSetIterator(data, 1.0))
     }
 
     val testData = iterator.test
     val predicts = Lists.newArrayList<Double>()
     val actually = Lists.newArrayList<Double>()
-    val indicators: Array<DoubleArray>? = iterator.indicators
+    val indicators: Array<DoubleArray>? = Array(StockDataSetIterator.VECTOR_K + 1) { DoubleArray(testData.size) }
 
+    var index = 0
     testData.forEach { indArrayDoublePair ->
         val output = net.rnnTimeStep(indArrayDoublePair.key)
-        if (indicators!!.size >= 6) {
-            indicators[0][indicators[0].size - testData.size + predicts.size - 1] = StockDataSetIterator.deNormalize(
-                    output.getDouble(0), iterator.mins[0], iterator.maxs[0]
-            )
-            indicators[1][indicators[1].size - testData.size + predicts.size - 1] = StockDataSetIterator.deNormalize(
-                    output.getDouble(1), iterator.mins[1], iterator.maxs[1]
-            )
-            indicators[2][indicators[2].size - testData.size + predicts.size - 1] = StockDataSetIterator.deNormalize(
-                    output.getDouble(2), iterator.mins[2], iterator.maxs[2]
-            )
-            indicators[3][indicators[3].size - testData.size + predicts.size - 1] = StockDataSetIterator.deNormalize(
-                    output.getDouble(3), iterator.mins[3], iterator.maxs[3]
-            )
-            indicators[4][indicators[4].size - testData.size + predicts.size - 1] = StockDataSetIterator.deNormalize(
-                    output.getDouble(4), iterator.mins[4], iterator.maxs[4]
-            )
-            indicators[5][indicators[5].size - testData.size + predicts.size - 1] = StockDataSetIterator.deNormalize(
-                    output.getDouble(5), iterator.mins[5], iterator.maxs[5]
-            )
-        }
+
+        // indicators
+        indicators!![0][index] = StockDataSetIterator.deNormalize(
+                output.getDouble(0), iterator.mins[0], iterator.maxs[0]
+        )
+        indicators[1][index] = StockDataSetIterator.deNormalize(
+                output.getDouble(1), iterator.mins[1], iterator.maxs[1]
+        )
+        indicators[2][index] = StockDataSetIterator.deNormalize(
+                output.getDouble(2), iterator.mins[2], iterator.maxs[2]
+        )
+        indicators[3][index] = StockDataSetIterator.deNormalize(
+                output.getDouble(3), iterator.mins[3], iterator.maxs[3]
+        )
+        indicators[4][index] = StockDataSetIterator.deNormalize(
+                output.getDouble(4), iterator.mins[4], iterator.maxs[4]
+        )
+        indicators[5][index] = StockDataSetIterator.deNormalize(
+                output.getDouble(5), iterator.mins[5], iterator.maxs[5]
+        )
+        index++
+
+        // closes
         predicts.add(StockDataSetIterator.deNormalize(
                 output.getDouble(6), iterator.closes[0], iterator.closes[1]
         ))
+
+        // actually
         actually.add(StockDataSetIterator.deNormalize(indArrayDoublePair.value, iterator.closes[0], iterator.closes[1]))
     }
 
@@ -108,11 +113,9 @@ private fun plote(actuals: List<Double>, predicts: List<Double>, indicators: Arr
 
     for ((k, indicator) in indicators!!.withIndex()) {
         val seriesInd = XYSeries(k)
-        var indexStart = indicator.size - predicts.size
-        if (indexStart < 0) indexStart = 0
         var i = 0
-        while (i < actuals.size) {
-            seriesInd.add(i.toDouble(), indicator[indexStart + i])
+        while (i < predicts.size) {
+            seriesInd.add(i.toDouble(), indicator[i])
             i++
         }
         data.addSeries(seriesInd)
