@@ -47,7 +47,7 @@ public class LearnService {
             actor.tell(Messages.LEARN, actorSystem.guardian());
         }
 
-        log.info("Candle list size {} {}: added {}, total: {}", candle.getSymbol(), candle.getStep(), 1, candleRepository.getSize(candle.getSymbol(), candle.getStep()));
+        log.debug("Candle list size {} {}: added {}, total: {}", candle.getSymbol(), candle.getStep(), 1, candleRepository.getSize(candle.getSymbol(), candle.getStep()));
     }
 
     public String getPredict(String symbol, int step) {

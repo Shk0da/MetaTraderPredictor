@@ -15,7 +15,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
-
 class Dl4jExpApplicationTest
 
 private val log = LoggerFactory.getLogger(Dl4jExpApplicationTest::class.java)

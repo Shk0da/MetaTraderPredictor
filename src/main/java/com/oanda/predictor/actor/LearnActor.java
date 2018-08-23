@@ -158,13 +158,14 @@ public class LearnActor extends UntypedAbstractActor {
 
         try {
             setStatus(Status.TRAINED);
+            log.info("Start train: {}_{}", instrument, step);
             StockDataSetIterator iterator = new StockDataSetIterator(candles, 1.0);
             neuralNetwork = LSTMNetwork.buildLstmNetworks(iterator);
             closeMin = iterator.getCloses()[0];
             closeMax = iterator.getCloses()[1];
 
             if (storeDisk && locationToSave != null && neuralNetwork != null) {
-                try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "*")) {
+                try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "_*")) {
                     dirStream.iterator().forEachRemaining(path -> path.toFile().delete());
                     String filePath = locationToSave + "_" + closeMin + "_" + closeMax;
                     ModelSerializer.writeModel(neuralNetwork, filePath, true);
@@ -186,7 +187,7 @@ public class LearnActor extends UntypedAbstractActor {
     @Synchronized
     private MultiLayerNetwork getNeuralNetwork() {
         if (storeDisk && neuralNetwork == null && locationToSave != null) {
-            try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "*")) {
+            try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "_*")) {
                 List<Path> paths = Lists.newArrayList(dirStream.iterator())
                         .stream()
                         .filter(path -> !path.toString().contains(".csv"))
@@ -199,7 +200,7 @@ public class LearnActor extends UntypedAbstractActor {
                     int firstDelimiter = fileName.indexOf('_');
                     int secondDelimiter = fileName.lastIndexOf('_');
                     closeMin = Double.valueOf(fileName.substring(firstDelimiter + 1, secondDelimiter));
-                    closeMax = Double.valueOf(fileName.substring(secondDelimiter + 1, fileName.length()));
+                    closeMax = Double.valueOf(fileName.substring(secondDelimiter + 1));
                     log.info("The model is loaded from the disk: {}", fileName);
                     lastLearn = DateTime.now();
                 }
