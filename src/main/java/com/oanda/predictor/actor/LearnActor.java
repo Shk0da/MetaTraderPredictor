@@ -67,6 +67,8 @@ public class LearnActor extends UntypedAbstractActor {
 
     private volatile double closeMin;
     private volatile double closeMax;
+    private volatile double[] maBlacks = new double[5];
+    private volatile double[] maWhites = new double[5];
 
     @Value("${predictor.learn.interval}")
     private Integer learnInterval;
@@ -142,10 +144,37 @@ public class LearnActor extends UntypedAbstractActor {
                     signal = Signal.UP;
                 }
             }
+
+            signal = getMaSignal(signal, maWhite, maWhites);
+            signal = getMaSignal(signal, maBlack, maBlacks);
+
             lastPredict = closePrice;
         }
 
         predictionRepository.addPredict(instrument, signal);
+    }
+
+    private Signal getMaSignal(final Signal signal, final double ma, double[] mas) {
+        mas[0] = mas[1];
+        mas[1] = mas[2];
+        mas[2] = mas[3];
+        mas[3] = mas[4];
+        mas[4] = ma;
+        if (mas[0] > 0) {
+            Signal maWhiteSignal = Signal.valueOf(signal.name());
+            if (mas[0] < mas[1] && mas[1] < mas[2] && mas[2] > mas[3] && mas[3] > mas[4]) {
+                maWhiteSignal = Signal.DOWN;
+            }
+            if (mas[0] > mas[1] && mas[1] > mas[2] && mas[2] < mas[3] && mas[3] < mas[4]) {
+                maWhiteSignal = Signal.UP;
+            }
+            return (signal == Signal.UP && maWhiteSignal == Signal.UP)
+                    ? Signal.UP
+                    : (signal == Signal.DOWN && maWhiteSignal == Signal.DOWN)
+                    ? Signal.DOWN
+                    : Signal.NONE;
+        }
+        return signal;
     }
 
     private void trainNetwork() {
