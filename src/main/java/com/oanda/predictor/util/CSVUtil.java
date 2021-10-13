@@ -15,6 +15,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
+import static java.lang.Double.parseDouble;
+import static java.lang.Math.min;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 @Slf4j
 public class CSVUtil {
 
@@ -44,7 +48,7 @@ public class CSVUtil {
         if (csvDataFile.exists() || !csvDataFile.exists() && csvDataFile.createNewFile()) {
             FileCopyUtils.copy(
                     stringBuilder.toString(),
-                    new OutputStreamWriter(new FileOutputStream(csvDataFile), "UTF-8")
+                    new OutputStreamWriter(new FileOutputStream(csvDataFile), UTF_8)
             );
         } else {
             log.error("Something wrong. File {} not save.", csvDataFile.getName());
@@ -61,14 +65,14 @@ public class CSVUtil {
         String[] line;
         while ((line = reader.readNext()) != null) {
             Candle candle = new Candle();
-            candle.setOpen(Double.valueOf(line[1]));
-            candle.setHigh(Double.valueOf(line[2]));
-            candle.setLow(Double.valueOf(line[3]));
-            candle.setClose(Double.valueOf(line[4]));
+            candle.setOpen(parseDouble(line[1]));
+            candle.setHigh(parseDouble(line[2]));
+            candle.setLow(parseDouble(line[3]));
+            candle.setClose(parseDouble(line[4]));
             candle.setVolume(Double.valueOf(line[5]).intValue());
             data.add(candle);
         }
 
-        return data.subList(0, data.size() < size ? data.size() : size);
+        return data.subList(0, min(data.size(), size));
     }
 }

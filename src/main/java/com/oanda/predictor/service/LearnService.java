@@ -22,8 +22,6 @@ import java.util.Map;
 @Service
 public class LearnService {
 
-    private final Map<String, ActorRef> actors = Maps.newConcurrentMap();
-
     @Autowired
     private CandleRepository candleRepository;
 
@@ -31,6 +29,7 @@ public class LearnService {
     private PredictionRepository predictionRepository;
 
     private final ActorSystem actorSystem = ActorSystem.create("LearnSystem");
+    private final Map<String, ActorRef> actors = Maps.newConcurrentMap();
 
     @Async
     @Synchronized
@@ -55,7 +54,6 @@ public class LearnService {
         if (actor != null) {
             actor.tell(Messages.PREDICT, actorSystem.guardian());
         }
-
         return predictionRepository.getPredict(symbol);
     }
 }

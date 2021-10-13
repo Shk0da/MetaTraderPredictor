@@ -9,9 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 public class SpringDIActor implements IndirectActorProducer {
 
     private Actor actorInstance;
-    private Class<? extends Actor> type;
-    private String instrument;
-    private Integer step;
+    private final Class<? extends Actor> type;
+    private final String instrument;
+    private final Integer step;
 
     public SpringDIActor(Class<? extends Actor> type, String instrument, Integer step) {
         this.type = type;

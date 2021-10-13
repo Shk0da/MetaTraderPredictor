@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 import static com.oanda.predictor.repository.PredictionRepository.Signal;
 import static com.oanda.predictor.util.StockDataSetIterator.deNormalize;
 import static com.oanda.predictor.util.StockDataSetIterator.getVectorSize;
+import static java.lang.Double.parseDouble;
 
 @Slf4j
 @Scope("prototype")
@@ -67,8 +68,8 @@ public class LearnActor extends UntypedAbstractActor {
 
     private volatile double closeMin;
     private volatile double closeMax;
-    private volatile double[] maBlacks = new double[5];
-    private volatile double[] maWhites = new double[5];
+    private final double[] maBlacks = new double[5];
+    private final double[] maWhites = new double[5];
 
     @Value("${predictor.learn.interval}")
     private Integer learnInterval;
@@ -76,9 +77,9 @@ public class LearnActor extends UntypedAbstractActor {
     @Value("${neuralnetwork.store.disk}")
     private Boolean storeDisk;
 
-    private String locationToSave;
+    private final String locationToSave;
 
-    private TaskScheduler taskScheduler = ApplicationContextProvider.getApplicationContext().getBean(TaskScheduler.class);
+    private final TaskScheduler taskScheduler = ApplicationContextProvider.getApplicationContext().getBean(TaskScheduler.class);
 
     public LearnActor(String instrument, Integer step) {
         this.instrument = instrument;
@@ -193,7 +194,7 @@ public class LearnActor extends UntypedAbstractActor {
             closeMin = iterator.getCloses()[0];
             closeMax = iterator.getCloses()[1];
 
-            if (storeDisk && locationToSave != null && neuralNetwork != null) {
+            if (storeDisk && neuralNetwork != null) {
                 try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "_*")) {
                     dirStream.iterator().forEachRemaining(path -> path.toFile().delete());
                     String filePath = locationToSave + "_" + closeMin + "_" + closeMax;
@@ -215,7 +216,7 @@ public class LearnActor extends UntypedAbstractActor {
 
     @Synchronized
     private MultiLayerNetwork getNeuralNetwork() {
-        if (storeDisk && neuralNetwork == null && locationToSave != null) {
+        if (storeDisk && neuralNetwork == null) {
             try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "_*")) {
                 List<Path> paths = Lists.newArrayList(dirStream.iterator())
                         .stream()
@@ -228,8 +229,8 @@ public class LearnActor extends UntypedAbstractActor {
                     neuralNetwork = ModelSerializer.restoreMultiLayerNetwork(fileName);
                     int firstDelimiter = fileName.indexOf('_');
                     int secondDelimiter = fileName.lastIndexOf('_');
-                    closeMin = Double.valueOf(fileName.substring(firstDelimiter + 1, secondDelimiter));
-                    closeMax = Double.valueOf(fileName.substring(secondDelimiter + 1));
+                    closeMin = parseDouble(fileName.substring(firstDelimiter + 1, secondDelimiter));
+                    closeMax = parseDouble(fileName.substring(secondDelimiter + 1));
                     log.info("The model is loaded from the disk: {}", fileName);
                     lastLearn = DateTime.now();
                 }

@@ -1,4 +1,4 @@
-package com.oanda.bot.config;
+package com.oanda.predictor.config;
 
 import com.oanda.predictor.provider.ApplicationContextProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -9,7 +9,11 @@ import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.core.env.PropertySource;
 
 import javax.annotation.PostConstruct;
-import java.util.*;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 @Slf4j
 @Configuration

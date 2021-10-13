@@ -3,7 +3,6 @@ package com.oanda.predictor.repository;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.oanda.predictor.domain.Candle;
-import com.oanda.predictor.util.StockDataSetIterator;
 import lombok.Getter;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;

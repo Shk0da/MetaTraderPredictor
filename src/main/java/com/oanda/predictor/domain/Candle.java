@@ -9,6 +9,7 @@ import java.util.Objects;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Candle {
+
     public Timestamp time;
     public String symbol;
     public int step;
