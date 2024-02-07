@@ -8,7 +8,6 @@ import org.springframework.core.env.AbstractEnvironment;
 import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.core.env.PropertySource;
 import ru.tinkoff.predictor.actor.LearnActor;
-import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 
 import javax.annotation.PostConstruct;
 import java.util.Arrays;
@@ -24,9 +23,6 @@ public class PropertiesLogger {
 
     @Autowired
     private AbstractEnvironment environment;
-
-    @Autowired
-    private ApplicationContextProvider applicationContextProvider;
 
     @PostConstruct
     public void printProperties() {

@@ -1,8 +1,9 @@
 package ru.tinkoff.predictor.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.TaskScheduler;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import ru.tinkoff.piapi.contract.v1.CandleInterval;
 import ru.tinkoff.piapi.contract.v1.HistoricCandle;
 import ru.tinkoff.piapi.contract.v1.Quotation;
@@ -13,7 +14,6 @@ import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 import javax.annotation.PostConstruct;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 import static java.lang.System.out;
 import static java.time.OffsetDateTime.now;
 
-@Component
+@Service
 public class IndicatorTrader {
 
     @Autowired
@@ -34,12 +34,8 @@ public class IndicatorTrader {
 
     private final TaskScheduler taskScheduler = ApplicationContextProvider.getApplicationContext().getBean(TaskScheduler.class);
 
-    private Set<String> tickerNames = new HashSet<String>(){{
-        add("MTSS");
-        add("IRAO");
-        add("RUAL");
-        add("GAZP");
-    }};
+    @Value("#{'${predictor.tickers}'.split(',')}")
+    private Set<String> tickerNames;
 
     @PostConstruct
     public void run() {
