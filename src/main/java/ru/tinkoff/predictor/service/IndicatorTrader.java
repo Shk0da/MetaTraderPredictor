@@ -11,7 +11,6 @@ import ru.tinkoff.piapi.contract.v1.Share;
 import ru.tinkoff.predictor.domain.Candle;
 import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 
-import javax.annotation.PostConstruct;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +36,6 @@ public class IndicatorTrader {
     @Value("#{'${predictor.tickers}'.split(',')}")
     private Set<String> tickerNames;
 
-    @PostConstruct
     public void run() {
         List<Share> stocks = tcsService.getMoexShares()
                 .stream()
@@ -45,7 +43,7 @@ public class IndicatorTrader {
                 .collect(Collectors.toList());
         init(stocks);
 
-        taskScheduler.scheduleAtFixedRate(() -> {
+        taskScheduler.scheduleWithFixedDelay(() -> {
             stocks.forEach(stock -> {
                 sleep(300, 450);
                 List<HistoricCandle> m60candles = tcsService.getCandles(
@@ -63,7 +61,7 @@ public class IndicatorTrader {
                     TelegramNotifyService.telegramNotifyService.sendMessage(stock.getTicker() + ": " + predict);
                 }
             });
-        }, 60 * 60 * 1000);
+        }, TimeUnit.HOURS.toMillis(1));
     }
 
     private void init(List<Share> stocks) {
@@ -72,7 +70,7 @@ public class IndicatorTrader {
             try {
                 out.println("Start: " + stock.getName());
                 List<HistoricCandle> m60candles = new ArrayList<>();
-                for (int i = 7 * 25; i > 7; i = i - 7) {
+                for (int i = 7 * 30; i > 7; i = i - 7) {
                     m60candles.addAll(
                             tcsService.getCandles(
                                     stock.getFigi(),
