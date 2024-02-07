@@ -1,6 +1,5 @@
 package ru.tinkoff.predictor.config;
 
-import ru.tinkoff.predictor.actor.LearnActor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +8,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import ru.tinkoff.predictor.actor.LearnActor;
 
 @Configuration
 public class TaskSchedulerExecutorConfig {

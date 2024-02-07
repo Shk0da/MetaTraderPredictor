@@ -1,12 +1,12 @@
 package ru.tinkoff.predictor.util;
 
 import com.google.common.collect.Lists;
-import ru.tinkoff.predictor.actor.LearnActor;
-import ru.tinkoff.predictor.domain.Candle;
 import com.opencsv.CSVReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.FileCopyUtils;
+import ru.tinkoff.predictor.actor.LearnActor;
+import ru.tinkoff.predictor.domain.Candle;
 
 import java.io.File;
 import java.io.FileOutputStream;

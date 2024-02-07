@@ -1,7 +1,6 @@
 package ru.tinkoff.predictor.repository;
 
 import com.google.common.collect.Maps;
-import lombok.Synchronized;
 import org.springframework.stereotype.Repository;
 
 import java.util.Map;
@@ -17,7 +16,6 @@ public class PredictionRepository {
         return predicts.getOrDefault(symbol, Signal.NONE).name();
     }
 
-    @Synchronized
     public void addPredict(String symbol, Signal predict) {
         predicts.put(symbol, predict);
     }

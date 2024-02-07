@@ -1,7 +1,4 @@
 import com.google.common.collect.Lists
-import ru.tinkoff.predictor.util.CSVUtil
-import ru.tinkoff.predictor.util.LSTMNetwork
-import ru.tinkoff.predictor.util.StockDataSetIterator
 import org.deeplearning4j.util.ModelSerializer
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.ChartUtilities
@@ -11,6 +8,9 @@ import org.jfree.chart.plot.XYPlot
 import org.jfree.data.xy.XYSeries
 import org.jfree.data.xy.XYSeriesCollection
 import org.slf4j.LoggerFactory
+import ru.tinkoff.predictor.util.CSVUtil
+import ru.tinkoff.predictor.util.LSTMNetwork
+import ru.tinkoff.predictor.util.StockDataSetIterator
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException

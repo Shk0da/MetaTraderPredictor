@@ -1,7 +1,5 @@
 package ru.tinkoff.predictor.service;
 
-import ru.tinkoff.predictor.domain.Candle;
-import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
@@ -9,6 +7,8 @@ import ru.tinkoff.piapi.contract.v1.CandleInterval;
 import ru.tinkoff.piapi.contract.v1.HistoricCandle;
 import ru.tinkoff.piapi.contract.v1.Quotation;
 import ru.tinkoff.piapi.contract.v1.Share;
+import ru.tinkoff.predictor.domain.Candle;
+import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 
 import javax.annotation.PostConstruct;
 import java.sql.Timestamp;

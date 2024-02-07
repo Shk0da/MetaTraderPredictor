@@ -1,8 +1,8 @@
 package ru.tinkoff.predictor.service;
 
 
-import ru.tinkoff.predictor.config.TelegramNotifyConfig;
 import org.springframework.web.client.RestTemplate;
+import ru.tinkoff.predictor.config.TelegramNotifyConfig;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;

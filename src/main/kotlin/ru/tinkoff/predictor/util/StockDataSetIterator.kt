@@ -1,6 +1,5 @@
 package ru.tinkoff.predictor.util
 
-import ru.tinkoff.predictor.domain.Candle
 import org.nd4j.linalg.api.ndarray.INDArray
 import org.nd4j.linalg.dataset.DataSet
 import org.nd4j.linalg.dataset.api.DataSetPreProcessor
@@ -8,7 +7,8 @@ import org.nd4j.linalg.dataset.api.iterator.DataSetIterator
 import org.nd4j.linalg.factory.Nd4j
 import org.nd4j.linalg.primitives.Pair
 import org.slf4j.LoggerFactory
-import java.util.*
+import ru.tinkoff.predictor.domain.Candle
+import java.util.LinkedList
 
 class StockDataSetIterator(stockDataList: List<Candle>, splitRatio: Double = 1.0) : DataSetIterator {
 

@@ -1,12 +1,10 @@
 package ru.tinkoff.predictor.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.Data;
 
 import java.sql.Timestamp;
 import java.util.Objects;
 
-@Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Candle {
 

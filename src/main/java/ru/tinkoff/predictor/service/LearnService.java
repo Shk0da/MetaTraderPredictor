@@ -4,18 +4,17 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.google.common.collect.Maps;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
 import ru.tinkoff.predictor.actor.LearnActor;
 import ru.tinkoff.predictor.actor.Messages;
 import ru.tinkoff.predictor.actor.SpringDIActor;
 import ru.tinkoff.predictor.domain.Candle;
 import ru.tinkoff.predictor.repository.CandleRepository;
 import ru.tinkoff.predictor.repository.PredictionRepository;
-import lombok.Synchronized;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
@@ -34,7 +33,6 @@ public class LearnService {
     private final Map<String, ActorRef> actors = Maps.newConcurrentMap();
 
     @Async
-    @Synchronized
     public void addCandle(Candle candle) {
         candleRepository.addCandle(candle);
 

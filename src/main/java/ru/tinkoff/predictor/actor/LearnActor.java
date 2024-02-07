@@ -2,16 +2,7 @@ package ru.tinkoff.predictor.actor;
 
 import akka.actor.UntypedAbstractActor;
 import com.google.common.collect.Lists;
-import ru.tinkoff.predictor.domain.Candle;
-import ru.tinkoff.predictor.provider.ApplicationContextProvider;
-import ru.tinkoff.predictor.repository.CandleRepository;
-import ru.tinkoff.predictor.repository.PredictionRepository;
-import ru.tinkoff.predictor.util.CSVUtil;
-import ru.tinkoff.predictor.util.LSTMNetwork;
-import ru.tinkoff.predictor.util.StockDataSetIterator;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.Synchronized;
+import kotlin.jvm.Synchronized;
 import org.apache.commons.math3.util.Precision;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.util.ModelSerializer;
@@ -24,6 +15,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
+import ru.tinkoff.predictor.domain.Candle;
+import ru.tinkoff.predictor.provider.ApplicationContextProvider;
+import ru.tinkoff.predictor.repository.CandleRepository;
+import ru.tinkoff.predictor.repository.PredictionRepository;
+import ru.tinkoff.predictor.util.CSVUtil;
+import ru.tinkoff.predictor.util.LSTMNetwork;
+import ru.tinkoff.predictor.util.StockDataSetIterator;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -37,10 +35,10 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static java.lang.Double.parseDouble;
 import static ru.tinkoff.predictor.repository.PredictionRepository.Signal;
 import static ru.tinkoff.predictor.util.StockDataSetIterator.deNormalize;
 import static ru.tinkoff.predictor.util.StockDataSetIterator.getVectorSize;
-import static java.lang.Double.parseDouble;
 
 @Scope("prototype")
 @Component("LearnActor")
@@ -64,124 +62,10 @@ public class LearnActor extends UntypedAbstractActor {
     @Autowired
     private PredictionRepository predictionRepository;
 
-    @Getter
-    @Setter
     public volatile Status status = Status.NOTHING;
-
-    public static Logger getLog() {
-        return log;
-    }
-
-    public static void setLog(Logger log) {
-        LearnActor.log = log;
-    }
-
-    public String getInstrument() {
-        return instrument;
-    }
-
-    public Integer getStep() {
-        return step;
-    }
-
-    public void setNeuralNetwork(MultiLayerNetwork neuralNetwork) {
-        this.neuralNetwork = neuralNetwork;
-    }
-
-    public DateTime getLastLearn() {
-        return lastLearn;
-    }
-
-    public void setLastLearn(DateTime lastLearn) {
-        this.lastLearn = lastLearn;
-    }
-
-    public Double getLastPredict() {
-        return lastPredict;
-    }
-
-    public void setLastPredict(Double lastPredict) {
-        this.lastPredict = lastPredict;
-    }
-
-    public Double getLastCandleClose() {
-        return lastCandleClose;
-    }
-
-    public void setLastCandleClose(Double lastCandleClose) {
-        this.lastCandleClose = lastCandleClose;
-    }
-
-    public CandleRepository getCandleRepository() {
-        return candleRepository;
-    }
-
-    public void setCandleRepository(CandleRepository candleRepository) {
-        this.candleRepository = candleRepository;
-    }
-
-    public PredictionRepository getPredictionRepository() {
-        return predictionRepository;
-    }
-
-    public void setPredictionRepository(PredictionRepository predictionRepository) {
-        this.predictionRepository = predictionRepository;
-    }
-
-    public Status getStatus() {
-        return status;
-    }
 
     public void setStatus(Status status) {
         this.status = status;
-    }
-
-    public double getCloseMin() {
-        return closeMin;
-    }
-
-    public void setCloseMin(double closeMin) {
-        this.closeMin = closeMin;
-    }
-
-    public double getCloseMax() {
-        return closeMax;
-    }
-
-    public void setCloseMax(double closeMax) {
-        this.closeMax = closeMax;
-    }
-
-    public double[] getMaBlacks() {
-        return maBlacks;
-    }
-
-    public double[] getMaWhites() {
-        return maWhites;
-    }
-
-    public Integer getLearnInterval() {
-        return learnInterval;
-    }
-
-    public void setLearnInterval(Integer learnInterval) {
-        this.learnInterval = learnInterval;
-    }
-
-    public Boolean getStoreDisk() {
-        return storeDisk;
-    }
-
-    public void setStoreDisk(Boolean storeDisk) {
-        this.storeDisk = storeDisk;
-    }
-
-    public String getLocationToSave() {
-        return locationToSave;
-    }
-
-    public TaskScheduler getTaskScheduler() {
-        return taskScheduler;
     }
 
     private volatile double closeMin;
@@ -332,7 +216,6 @@ public class LearnActor extends UntypedAbstractActor {
         }
     }
 
-    @Synchronized
     private MultiLayerNetwork getNeuralNetwork() {
         if (storeDisk && neuralNetwork == null) {
             try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(Paths.get("."), locationToSave + "_*")) {

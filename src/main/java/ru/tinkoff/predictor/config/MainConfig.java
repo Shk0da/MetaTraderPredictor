@@ -1,7 +1,7 @@
 package ru.tinkoff.predictor.config;
 
-import ru.tinkoff.predictor.util.PropertiesUtils;
 import org.springframework.stereotype.Component;
+import ru.tinkoff.predictor.util.PropertiesUtils;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;

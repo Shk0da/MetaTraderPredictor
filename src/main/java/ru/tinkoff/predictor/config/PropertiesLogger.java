@@ -1,7 +1,5 @@
 package ru.tinkoff.predictor.config;
 
-import ru.tinkoff.predictor.actor.LearnActor;
-import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +7,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.AbstractEnvironment;
 import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.core.env.PropertySource;
+import ru.tinkoff.predictor.actor.LearnActor;
+import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 
 import javax.annotation.PostConstruct;
 import java.util.Arrays;

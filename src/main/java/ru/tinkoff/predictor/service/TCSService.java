@@ -1,11 +1,11 @@
 package ru.tinkoff.predictor.service;
 
-import ru.tinkoff.predictor.config.MainConfig;
 import org.springframework.stereotype.Component;
 import ru.tinkoff.piapi.contract.v1.CandleInterval;
 import ru.tinkoff.piapi.contract.v1.HistoricCandle;
 import ru.tinkoff.piapi.contract.v1.Share;
 import ru.tinkoff.piapi.core.InvestApi;
+import ru.tinkoff.predictor.config.MainConfig;
 
 import java.time.OffsetDateTime;
 import java.util.List;

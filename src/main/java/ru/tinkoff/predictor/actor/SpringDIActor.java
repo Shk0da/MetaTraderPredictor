@@ -2,9 +2,9 @@ package ru.tinkoff.predictor.actor;
 
 import akka.actor.Actor;
 import akka.actor.IndirectActorProducer;
-import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ru.tinkoff.predictor.provider.ApplicationContextProvider;
 
 public class SpringDIActor implements IndirectActorProducer {
 
