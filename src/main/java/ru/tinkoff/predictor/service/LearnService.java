@@ -17,6 +17,7 @@ import ru.tinkoff.predictor.repository.CandleRepository;
 import ru.tinkoff.predictor.repository.PredictionRepository;
 
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class LearnService {
@@ -32,15 +33,19 @@ public class LearnService {
     private final ActorSystem actorSystem = ActorSystem.create("LearnSystem");
     private final Map<String, ActorRef> actors = Maps.newConcurrentMap();
 
+    private final ReentrantLock locker = new ReentrantLock();
+
     @Async
     public void addCandle(Candle candle) {
         candleRepository.addCandle(candle);
 
+        locker.lock();
         ActorRef actor = actors.getOrDefault(candle.getKey(), null);
         if (actor == null) {
             actor = actorSystem.actorOf(Props.create(SpringDIActor.class, LearnActor.class, candle.getSymbol(), candle.getStep()), "LearnActor_" + candle.getSymbol() + "_" + candle.getStep());
             actors.put(candle.getKey(), actor);
         }
+        locker.unlock();
 
         if (candle.getAsk() > 0 && candle.getBid() > 0) {
             actor.tell(Messages.LEARN, actorSystem.guardian());
