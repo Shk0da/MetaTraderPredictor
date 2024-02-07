@@ -70,7 +70,7 @@ public class IndicatorTrader {
             try {
                 out.println("Start: " + stock.getName());
                 List<HistoricCandle> m60candles = new ArrayList<>();
-                for (int i = 7 * 30; i > 7; i = i - 7) {
+                for (int i = 7 * 21; i > 7; i = i - 7) {
                     m60candles.addAll(
                             tcsService.getCandles(
                                     stock.getFigi(),
@@ -101,7 +101,7 @@ public class IndicatorTrader {
 
     private void addCandle(Share stock, HistoricCandle it) {
         Candle candle = new Candle();
-        candle.time = new Timestamp(System.currentTimeMillis());
+        candle.time = new Timestamp(it.getTime().getSeconds() * 1_000);
         candle.symbol = stock.getTicker();
         candle.step = 60;
         candle.bid = toDouble(it.getClose());
