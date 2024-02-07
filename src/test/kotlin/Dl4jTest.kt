@@ -1,7 +1,7 @@
 import com.google.common.collect.Lists
-import com.oanda.predictor.util.CSVUtil
-import com.oanda.predictor.util.LSTMNetwork
-import com.oanda.predictor.util.StockDataSetIterator
+import ru.tinkoff.predictor.util.CSVUtil
+import ru.tinkoff.predictor.util.LSTMNetwork
+import ru.tinkoff.predictor.util.StockDataSetIterator
 import org.deeplearning4j.util.ModelSerializer
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.ChartUtilities
@@ -76,7 +76,8 @@ fun predictTest() {
         index++
 
         // closes
-        predicts.add(StockDataSetIterator.deNormalize(
+        predicts.add(
+            StockDataSetIterator.deNormalize(
                 output.getDouble(6), iterator.closes[0], iterator.closes[1]
         ))
 
